@@ -72,6 +72,31 @@ def parse_plan(text: str) -> dict:
     return json.loads(m.group(0) if m else text)
 
 
+def run_desk(candles: list, session: str, provider: str, context: str = "",
+             pnl: float = 0.0, cfg: RiskConfig | None = None, use_jev: bool = False,
+             now=None, news=()) -> dict:
+    """ANALYST plan from the model, then RISK, then (optionally) Jev. Shared by the CLI and serve.py.
+
+    Raises ValueError / KeyError / RuntimeError / URLError when the model call or its JSON fails.
+    """
+    if provider not in CALLERS:
+        raise ValueError(f"provider must be one of {sorted(CALLERS)}")
+    if session not in ("London", "NewYork"):
+        raise ValueError("session must be London or NewYork")
+    cfg = cfg or RiskConfig()
+    user = (f"Session: {session}\nCandles (UTC):\n{json.dumps(candles)}\n"
+            f"Extra data: {context or 'none supplied'}\nReturn only the JSON plan.")
+    plan = parse_plan(CALLERS[provider](analyst_prompt(), user))
+    d = evaluate(plan, candles, pnl, cfg, now, news)
+    result = {"provider": provider, "model": keys.get_model(provider), "plan": plan, "risk": d.to_dict()}
+    if use_jev:
+        try:
+            result["jev_review"] = jev.review(plan, candles, context)
+        except (RuntimeError, urllib.error.URLError) as e:
+            result["jev_review"] = {"error": str(e)}
+    return result
+
+
 def main(argv=None) -> int:
     keys.load_dotenv()
     ap = argparse.ArgumentParser(description="ANALYST (Gemini/Grok) + RISK gate")
@@ -92,21 +117,12 @@ def main(argv=None) -> int:
         if a.config:
             with open(a.config) as f:
                 cfg = RiskConfig.from_dict(json.load(f))
-        user = (f"Session: {a.session}\nCandles (UTC):\n{json.dumps(candles)}\n"
-                f"Extra data: {a.context or 'none supplied'}\nReturn only the JSON plan.")
-        plan = parse_plan(CALLERS[a.provider](analyst_prompt(), user))
+        result = run_desk(candles, a.session, a.provider, a.context, a.pnl, cfg, a.jev, a.now, a.news)
     except (OSError, ValueError, KeyError, RuntimeError, urllib.error.URLError) as e:
         print(json.dumps({"verdict": "ERROR", "reasons": [str(e)]}))
         return 2
-    d = evaluate(plan, candles, a.pnl, cfg, a.now, a.news)
-    result = {"provider": a.provider, "plan": plan, "risk": d.to_dict()}
-    if a.jev:
-        try:
-            result["jev_review"] = jev.review(plan, candles, a.context)
-        except (RuntimeError, urllib.error.URLError) as e:
-            result["jev_review"] = {"error": str(e)}
     print(json.dumps(result, indent=2, default=str))
-    return 1 if d.verdict == "REJECT" else 0
+    return 1 if result["risk"]["verdict"] == "REJECT" else 0
 
 
 if __name__ == "__main__":

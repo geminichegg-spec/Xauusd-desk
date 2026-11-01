@@ -158,12 +158,33 @@ button,select,input,textarea{font:inherit; color:var(--fg)}
 .foot{font-size:12px; color:var(--faint); display:flex; flex-direction:column; gap:4px; max-width:90ch}
 .foot code{font-family:var(--f-mono); color:var(--dim)}
 
+/* console */
+.console{display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:16px}
+.console .ctl{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; align-content:start}
+.console .ctl .wide{grid-column:1/-1}
+.console .row{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+.btn[disabled]{opacity:.4; cursor:not-allowed; border-color:var(--line-hi); color:var(--dim)}
+.btn.go{border-color:var(--good); color:var(--good); background:var(--good-dim)}
+.btn.stop{border-color:var(--bad); color:var(--bad); background:var(--bad-dim)}
+.check{display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer}
+.check input{accent-color:var(--gold); width:16px; height:16px}
+.log{border:1px solid var(--line); background:rgba(6,10,17,.6); padding:10px 12px; display:flex; flex-direction:column; gap:8px; min-width:0}
+.log .line{font-family:var(--f-mono); font-size:12px; color:var(--dim); overflow-wrap:anywhere}
+.log .line.err{color:var(--bad)} .log .line.ok{color:var(--good)}
+.jev{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; background:var(--line); border:1px solid var(--line)}
+.jev > div{background:var(--panel); padding:7px 9px; display:flex; flex-direction:column; gap:2px; min-width:0}
+.jev .v{font-family:var(--f-mono); font-size:15px; font-weight:700}
+.flags{margin:0; padding-left:18px; font-size:12.5px; color:var(--warn)}
+.offline{border:1px dashed var(--line-hi); padding:10px 12px; font-size:13px; color:var(--dim)}
+.offline code{font-family:var(--f-mono); color:var(--gold)}
 @media (max-width:1100px){
   .s4,.s5{grid-column:span 6} .s7,.s8{grid-column:span 12}
   .strip{grid-template-columns:repeat(3,minmax(0,1fr))} .strip > div:first-child{grid-column:span 3}
   .inputs{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+@media (max-width:900px){ .console{grid-template-columns:1fr} .jev{grid-template-columns:repeat(2,minmax(0,1fr))} }
 @media (max-width:720px){
+  .console .ctl{grid-template-columns:1fr}
   .s4,.s5,.s6{grid-column:span 12}
   .strip{grid-template-columns:repeat(2,minmax(0,1fr))} .strip > div:first-child{grid-column:span 2}
   .clocks,.gauges{grid-template-columns:1fr}
@@ -206,6 +227,47 @@ button,select,input,textarea{font:inherit; color:var(--fg)}
     <div><span class="lbl">R:R to T1</span><div id="sRR" class="big">—</div><span id="sRRn" class="note"></span></div>
     <div><span class="lbl">Confidence</span><div id="sConf" class="big">—</div><span id="sConfn" class="note"></span></div>
     <div><span class="lbl">Daily loss left</span><div id="sLoss" class="big">—</div><span id="sLossn" class="note"></span></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-con">
+    <div class="ph"><h2 id="h-con"><b>00</b>Desk console</h2>
+      <div class="row" style="display:flex; gap:6px; flex-wrap:wrap">
+        <span id="srvChip" class="chip c-dim">server: checking</span>
+        <span id="kGem" class="chip c-na">gemini</span><span id="kGrok" class="chip c-na">grok</span><span id="kJev" class="chip c-na">jev</span>
+      </div></div>
+    <div id="offline" class="offline" hidden>Read-only mode. To run ANALYST from here, open a terminal in the repo folder, run <code>python3 serve.py</code>, then open <code>http://127.0.0.1:8765</code>. Your keys stay in <code>.env</code> and never reach the browser.</div>
+    <div class="console">
+      <div class="ctl">
+        <div class="field"><label class="lbl" for="cSession">Session</label><select id="cSession"><option value="London">London</option><option value="NewYork">New York</option></select></div>
+        <div class="field"><label class="lbl" for="cProvider">ANALYST model</label><select id="cProvider"><option value="gemini">Gemini</option><option value="grok">Grok (xAI)</option></select></div>
+        <div class="field"><span class="lbl">Second opinion</span><label class="check" for="cJev"><input id="cJev" type="checkbox"> Jev review (TypeSafe)</label></div>
+        <div class="field wide"><label class="lbl" for="cContext">Extra data for ANALYST (volume profile, whale, macro)</label><textarea id="cContext" spellcheck="false" style="min-height:64px" placeholder="VP: VAH 2662, POC 2655, LVN 2664-2668. Leave empty if you have none; ANALYST marks it not_available."></textarea></div>
+        <div class="wide row">
+          <button class="btn primary" id="cRun" type="button">Run ANALYST</button>
+          <button class="btn" id="cGate" type="button">Check with Python gate</button>
+          <button class="btn" id="cJevOnly" type="button">Jev review only</button>
+        </div>
+      </div>
+      <div class="log" aria-live="polite">
+        <span class="lbl">Run log</span>
+        <div id="cLog"><div class="line">Uses the candles loaded in the HUD. Sample candles are synthetic.</div></div>
+        <div id="jevBox" hidden>
+          <div class="row" style="display:flex; justify-content:space-between; gap:8px; margin-bottom:6px"><span class="lbl">Jev review · advisory</span><span id="jevChip" class="chip c-dim">—</span></div>
+          <div class="jev">
+            <div><span class="lbl">Data bias</span><span id="jBias" class="v">—</span></div>
+            <div><span class="lbl">Breakout 0–3</span><span id="jBreak" class="v">—</span></div>
+            <div><span class="lbl">Consistent</span><span id="jCons" class="v">—</span></div>
+            <div><span class="lbl">Unsupported</span><span id="jUns" class="v">—</span></div>
+          </div>
+          <ul class="flags" id="jFlags"></ul>
+        </div>
+        <div id="decBox" hidden style="display:flex; flex-direction:column; gap:8px">
+          <span class="lbl">Your decision (CARDINAL asks you before anything leaves the desk)</span>
+          <div class="field"><label class="lbl" for="cNote">Note</label><input id="cNote" type="text" placeholder="optional"></div>
+          <div class="row"><button class="btn go" id="cApprove" type="button">Approve plan</button><button class="btn stop" id="cReject" type="button">Reject plan</button><span id="decState" class="note"></span></div>
+        </div>
+      </div>
+    </div>
   </section>
 
   <section class="panel s12" id="pastePanel" hidden>
@@ -284,7 +346,7 @@ button,select,input,textarea{font:inherit; color:var(--fg)}
     <section class="panel s4" aria-labelledby="h-risk">
       <div class="ph"><h2 id="h-risk"><b>04</b>RISK gate</h2><span id="riskChip" class="chip c-dim">—</span></div>
       <ul class="checks" id="checks"></ul>
-      <span class="note">Browser mirror of <span class="mono">risk_gate.py</span> with your config. The Python gate is the authority before anything leaves the desk.</span>
+      <span class="note" id="riskSrc">Browser mirror of <span class="mono">risk_gate.py</span>. The Python gate is the authority before anything leaves the desk.</span>
     </section>
 
     <!-- Daily loss -->
@@ -349,9 +411,10 @@ const SESSIONS=["London","NewYork"], DIRS=["long","short","flat"];
 const VP=["strong","moderate","weak","not_available"], WH=["supportive","opposing","neutral","not_available"];
 const TZ={London:"Europe/London", NewYork:"America/New_York"};
 
-let S;
+let S, SERVER_CFG=null; // SERVER_CFG: thresholds serve.py's Python gate uses
+const baseCfg=()=>({...DEFAULT_CFG, ...(SERVER_CFG||{})});
 function sampleState(){
-  return {plan:SAMPLE_PLAN, candles:SAMPLE_CANDLES, pnl:-120, macro:{bias:"not_available", note:""}, news:[], cfg:{...DEFAULT_CFG},
+  return {plan:SAMPLE_PLAN, candles:SAMPLE_CANDLES, pnl:-120, macro:{bias:"not_available", note:""}, news:[], cfg:baseCfg(),
     sample:true, label:"Sample: examples/plan_long.json + candles_london.json (synthetic, not market prices)", files:[]};
 }
 S = sampleState();
@@ -493,7 +556,7 @@ function ingest(obj, name){
 }
 function leaveSample(){
   if(S.sample){ // user data replaces sample wholesale so sample values never mix with real ones
-    S={plan:null, candles:null, pnl:0, macro:{bias:"not_available",note:""}, news:[], cfg:{...DEFAULT_CFG}, sample:false, label:"", files:[]};
+    S={plan:null, candles:null, pnl:0, macro:{bias:"not_available",note:""}, news:[], cfg:baseCfg(), sample:false, label:"", files:[]};
   }
 }
 function loadTexts(items){
@@ -504,7 +567,7 @@ function loadTexts(items){
     catch(e){ errs.push(`${name}: ${e.message}`); }
   }
   if(!S.label || S.label.startsWith("Loaded")) S.label="Loaded: "+S.files.join(" · ");
-  syncInputs(); render();
+  S.runId=null; S.jev=null; syncInputs(); changed();
   return errs.join("\n");
 }
 async function loadFiles(files){
@@ -596,7 +659,9 @@ function render(){
   $("footSrc").textContent="Source: "+(S.label||"nothing loaded yet");
 
   // gate
-  const d = plan ? evaluate(plan, S.candles, S.pnl, cfg, now, S.news) : null;
+  const d = S.py ? S.py : plan ? evaluate(plan, S.candles, S.pnl, cfg, now, S.news) : null;
+  $("riskSrc").innerHTML = S.py ? `Result from the Python gate (<span class="mono">risk_gate.py</span> via serve.py), checked ${esc(S.pyAt)}.`
+    : `Browser mirror of <span class="mono">risk_gate.py</span>.${API.online?" Python re-check pending.":" The Python gate is the authority before anything leaves the desk."}`;
   const v=$("verdict");
   if(!d){ v.className="verdict v-WAIT"; v.textContent="NO PLAN"; $("verdictWhy").textContent="Load an ANALYST plan JSON to run the gate."; }
   else {
@@ -722,24 +787,118 @@ function tick(){
 function syncInputs(){
   $("inPnl").value=S.pnl; $("inMacro").value=S.macro.bias; $("inMacroNote").value=S.macro.note; $("inNews").value=(S.news||[]).join(", ");
 }
-$("inPnl").addEventListener("input",e=>{ const v=parseFloat(e.target.value); S.pnl=isNum(v)?v:0; render(); });
+$("inPnl").addEventListener("input",e=>{ const v=parseFloat(e.target.value); S.pnl=isNum(v)?v:0; changed(); });
 $("inMacro").addEventListener("change",e=>{ S.macro.bias=e.target.value; render(); });
 $("inMacroNote").addEventListener("input",e=>{ S.macro.note=e.target.value; render(); });
-$("inNews").addEventListener("change",e=>{ S.news=e.target.value.split(",").map(x=>x.trim()).filter(Boolean); render(); });
+$("inNews").addEventListener("change",e=>{ S.news=e.target.value.split(",").map(x=>x.trim()).filter(Boolean); changed(); });
 $("fileIn").addEventListener("change",e=>{ loadFiles([...e.target.files]); e.target.value=""; });
 $("pasteBtn").addEventListener("click",()=>{ $("pastePanel").hidden=false; $("pasteTxt").focus(); });
 $("pasteClose").addEventListener("click",()=>{ $("pastePanel").hidden=true; });
 $("pasteApply").addEventListener("click",()=>{ const err=loadTexts([{name:"pasted",text:$("pasteTxt").value}]); $("pasteErr").textContent=err; if(!err) $("pastePanel").hidden=true; });
-$("resetBtn").addEventListener("click",()=>{ S=sampleState(); $("loadErr").textContent=""; syncInputs(); render(); });
+$("resetBtn").addEventListener("click",()=>{ S=sampleState(); $("loadErr").textContent=""; syncInputs(); changed(); renderConsole(); });
 let dragDepth=0;
 addEventListener("dragenter",e=>{ if([...(e.dataTransfer?.types||[])].includes("Files")){ dragDepth++; $("drop").hidden=false; e.preventDefault(); }});
 addEventListener("dragover",e=>e.preventDefault());
 addEventListener("dragleave",()=>{ if(--dragDepth<=0){dragDepth=0; $("drop").hidden=true;} });
 addEventListener("drop",e=>{ e.preventDefault(); dragDepth=0; $("drop").hidden=true; if(e.dataTransfer?.files?.length) loadFiles([...e.dataTransfer.files]); });
 
-syncInputs(); render();
+/* ---------- desk console (talks to serve.py on localhost) ---------- */
+const API={online:false, keys:{}, models:{}};
+const LOCAL=/^(127\.0\.0\.1|localhost|\[::1\])$/.test(location.hostname) && location.protocol.startsWith("http");
+async function api(path, body){
+  const r=await fetch(path, body?{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)}:{});
+  let j; try{ j=await r.json(); }catch(e){ throw new Error(`HTTP ${r.status}`); }
+  if(!r.ok) throw new Error(j.error||`HTTP ${r.status}`);
+  return j;
+}
+function log(msg, cls=""){
+  const el=document.createElement("div"); el.className="line "+cls;
+  el.textContent=new Date().toISOString().slice(11,19)+"  "+msg;
+  const box=$("cLog"); box.prepend(el); while(box.children.length>8) box.lastChild.remove();
+}
+let gateTimer=null;
+function changed(){ S.py=null; render(); if(API.online && S.plan){ clearTimeout(gateTimer); gateTimer=setTimeout(pyGate,350); } }
+async function pyGate(quiet=true){
+  if(!API.online || !S.plan) return;
+  try{
+    const j=await api("/api/gate",{plan:S.plan, candles:S.candles||[], pnl:S.pnl, news:S.news, now:S.news.length?new Date().toISOString():null});
+    S.py=j.risk; S.pyAt=new Date().toISOString().slice(11,19)+" UTC"; render();
+    if(!quiet) log(`Python gate: ${j.risk.verdict}`, j.risk.verdict==="REJECT"?"err":"ok");
+  }catch(e){ log("Python gate failed: "+e.message,"err"); }
+}
+function renderJev(r){
+  $("jevBox").hidden=!r;
+  if(!r) return;
+  if(r.error){ chip($("jevChip"),"error","c-bad"); ["jBias","jBreak","jCons","jUns"].forEach(id=>$(id).textContent="—"); $("jFlags").innerHTML=`<li>${esc(r.error)}</li>`; return; }
+  chip($("jevChip"), r.agrees?"agrees":"disagrees", r.agrees?"c-good":"c-warn");
+  const pc=x=>isNum(x)?Math.round(x*100)+"%":"—";
+  $("jBias").textContent=(r.data_bias||"—")+(isNum(r.data_bias_confidence)?` ${pc(r.data_bias_confidence)}`:"");
+  $("jBreak").textContent=isNum(r.breakout_quality_0_to_3)?r.breakout_quality_0_to_3.toFixed(1):"—";
+  $("jCons").textContent=pc(r.plan_consistent_p); $("jUns").textContent=pc(r.unsupported_claims_p);
+  $("jFlags").innerHTML=(r.flags||[]).map(f=>`<li>${esc(f)}</li>`).join("");
+}
+function renderConsole(){
+  const on=API.online;
+  $("offline").hidden=on;
+  chip($("srvChip"), on?"serve.py online":"server offline", on?"c-good live":"c-dim");
+  const k=(id,name,label)=>chip($(id), `${label} ${API.keys[name]?"key set":"no key"}${API.models[name]?" · "+API.models[name]:""}`, API.keys[name]?"c-good":"c-na");
+  k("kGem","gemini","gemini"); k("kGrok","grok","grok"); k("kJev","typesafe","jev");
+  const hasCandles=Array.isArray(S.candles)&&S.candles.length>0;
+  $("cRun").disabled=!on||!hasCandles||!API.keys[$("cProvider").value];
+  $("cGate").disabled=!on||!S.plan;
+  $("cJevOnly").disabled=!on||!S.plan||!hasCandles||!API.keys.typesafe;
+  $("cJev").disabled=!on||!API.keys.typesafe; if($("cJev").disabled) $("cJev").checked=false;
+  $("decBox").hidden=!S.runId;
+  renderJev(S.jev);
+}
+async function connect(){
+  if(!LOCAL){ API.online=false; renderConsole(); return; }
+  try{
+    const j=await api("/api/status");
+    API.online=true; API.keys=j.keys||{}; API.models=j.models||{};
+    if(j.config){ SERVER_CFG=j.config; S.cfg=baseCfg(); }
+    if(j.default_provider) $("cProvider").value=j.default_provider;
+    log("Connected to serve.py. Keys: "+Object.entries(API.keys).map(([n,v])=>`${n} ${v?"set":"missing"}`).join(", "));
+    renderConsole(); changed();
+  }catch(e){ API.online=false; renderConsole(); log("serve.py not reachable: "+e.message,"err"); }
+}
+async function busy(btn, fn){
+  const t=btn.textContent; btn.disabled=true; btn.textContent="Working…";
+  try{ await fn(); } finally{ btn.textContent=t; renderConsole(); }
+}
+$("cProvider").addEventListener("change",renderConsole);
+$("cSession").addEventListener("change",renderConsole);
+$("cRun").addEventListener("click",()=>busy($("cRun"), async()=>{
+  const provider=$("cProvider").value, session=$("cSession").value, useJev=$("cJev").checked;
+  log(`Asking ${provider} for a ${session} ORB plan${useJev?" + Jev review":""}…`);
+  try{
+    const r=await api("/api/run",{candles:S.candles, session, provider, context:$("cContext").value, pnl:S.pnl, jev:useJev, news:S.news, now:S.news.length?new Date().toISOString():null});
+    S.plan=r.plan; S.py=r.risk; S.pyAt=new Date().toISOString().slice(11,19)+" UTC"; S.jev=r.jev_review||null; S.runId=r.run_id;
+    S.label=`ANALYST ${provider} (${r.model}) · run ${r.run_id}`+(S.sample?" · on SAMPLE candles (synthetic)":"");
+    $("decState").textContent=""; $("cNote").value="";
+    log(`Plan ${String(r.plan?.direction||"?").toUpperCase()} · RISK ${r.risk.verdict} · saved runs/${r.run_id}.json`, r.risk.verdict==="REJECT"?"err":"ok");
+    render();
+  }catch(e){ log(`${provider} run failed: ${e.message}`,"err"); }
+}));
+$("cGate").addEventListener("click",()=>busy($("cGate"),()=>pyGate(false)));
+$("cJevOnly").addEventListener("click",()=>busy($("cJevOnly"), async()=>{
+  log("Asking Jev to review the current plan…");
+  try{ const r=await api("/api/jev",{plan:S.plan, candles:S.candles, context:$("cContext").value}); S.jev=r.jev_review; log(`Jev ${S.jev.agrees?"agrees":"disagrees"}`, S.jev.agrees?"ok":"err"); }
+  catch(e){ log("Jev review failed: "+e.message,"err"); }
+}));
+async function decide(value){
+  if(!S.runId) return;
+  try{ const r=await api("/api/decision",{run_id:S.runId, decision:value, note:$("cNote").value});
+    $("decState").textContent=`${value} at ${r.decision.at.slice(11,19)} UTC, saved to runs/${S.runId}.json`;
+    log(`You ${value} run ${S.runId}`, value==="approved"?"ok":"err");
+  }catch(e){ log("Could not save decision: "+e.message,"err"); }
+}
+$("cApprove").addEventListener("click",()=>decide("approved"));
+$("cReject").addEventListener("click",()=>decide("rejected"));
+
+syncInputs(); render(); renderConsole(); connect();
 setInterval(tick,1000);
-setInterval(render,30000); // re-run time-dependent gate checks (news blackout)
+setInterval(()=>{ if(S.py && S.news.length) pyGate(); else render(); },30000); // re-run time-dependent gate checks (news blackout)
 })();
 </script>
 </body>

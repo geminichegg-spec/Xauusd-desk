@@ -17,7 +17,8 @@ ANALYST can be run by **Google Gemini** or **Grok (xAI)**, and **TypeSafe AI (Je
 | `keys.py` | Loads `GEMINI_API_KEY` / `XAI_API_KEY` / `TYPESAFE_API_KEY` from env or `.env`; `python3 keys.py` shows which are set |
 | `.env.example` | Template for your keys (copy to `.env`) |
 | `.github/workflows/desk.yml` | Runs tests on every push; manual ANALYST run using repo secrets |
-| `hud.html` | Heads-up display: open in a browser, load or drop a plan, candles, config or bundle JSON. Mirrors the RISK gate; never fetches prices. |
+| `hud.html` | Heads-up display: open in a browser, load or drop a plan, candles, config or bundle JSON. Mirrors the RISK gate; never fetches prices. Served by `serve.py`, it also runs the desk. |
+| `serve.py` | Local control server for the HUD on `http://127.0.0.1:8765`: runs ANALYST + Jev, re-checks plans with the Python gate, logs your approve/reject to `runs/` |
 
 ## Add your API keys
 
@@ -42,6 +43,20 @@ ANALYST can be run by **Google Gemini** or **Grok (xAI)**, and **TypeSafe AI (Je
    Add `--jev` to either command to get the TypeSafe second opinion, or review a saved plan on its own:
    `python3 jev.py examples/plan_long.json examples/candles_london.json`
    Model names can be changed in `.env` (`GEMINI_MODEL`, `GROK_MODEL`, `JEV_MODEL`).
+
+### Operate the desk from the HUD
+
+```
+python3 serve.py            # then open http://127.0.0.1:8765
+```
+
+1. The console at the top shows `serve.py online` and which keys are set (yes/no only).
+2. Load your session candles with **Load JSON** (or drop the file on the page). The sample candles are synthetic.
+3. Pick the session, Gemini or Grok, tick **Jev review** if you have a TypeSafe key, add any volume profile / whale / macro notes, then **Run ANALYST**.
+4. The plan, the Python RISK verdict and Jev's opinion fill the HUD. Changing P&L or news times re-runs the Python gate.
+5. **Approve plan** or **Reject plan** writes your decision into `runs/<run_id>.json` (gitignored). Nothing places orders.
+
+Keys stay in `.env` and are read only by `serve.py`; the browser never sees them. The server listens on 127.0.0.1 only and refuses requests from other websites. Opened straight from disk, `hud.html` still works read-only.
 
 ### On GitHub (Actions secrets)
 
