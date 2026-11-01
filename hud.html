@@ -6,7 +6,7 @@
 <title>XAUUSD Cardinal HUD</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500&display=swap">
 <style>
 /* Layout: a single dark heads-up console. Verdict strip on top, then a 12-col grid of bracketed instrument panels. Gold = the instrument, cyan = time, semantic red/green/amber = state. */
 :root{
@@ -158,12 +158,33 @@ button,select,input,textarea{font:inherit; color:var(--fg)}
 .foot{font-size:12px; color:var(--faint); display:flex; flex-direction:column; gap:4px; max-width:90ch}
 .foot code{font-family:var(--f-mono); color:var(--dim)}
 
+/* console */
+.console{display:grid; grid-template-columns:minmax(0,1.1fr) minmax(0,1fr); gap:16px}
+.console .ctl{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; align-content:start}
+.console .ctl .wide{grid-column:1/-1}
+.console .row{display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+.btn[disabled]{opacity:.4; cursor:not-allowed; border-color:var(--line-hi); color:var(--dim)}
+.btn.go{border-color:var(--good); color:var(--good); background:var(--good-dim)}
+.btn.stop{border-color:var(--bad); color:var(--bad); background:var(--bad-dim)}
+.check{display:flex; align-items:center; gap:8px; font-size:13px; cursor:pointer}
+.check input{accent-color:var(--gold); width:16px; height:16px}
+.log{border:1px solid var(--line); background:rgba(6,10,17,.6); padding:10px 12px; display:flex; flex-direction:column; gap:8px; min-width:0}
+.log .line{font-family:var(--f-mono); font-size:12px; color:var(--dim); overflow-wrap:anywhere}
+.log .line.err{color:var(--bad)} .log .line.ok{color:var(--good)}
+.jev{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; background:var(--line); border:1px solid var(--line)}
+.jev > div{background:var(--panel); padding:7px 9px; display:flex; flex-direction:column; gap:2px; min-width:0}
+.jev .v{font-family:var(--f-mono); font-size:15px; font-weight:700}
+.flags{margin:0; padding-left:18px; font-size:12.5px; color:var(--warn)}
+.offline{border:1px dashed var(--line-hi); padding:10px 12px; font-size:13px; color:var(--dim)}
+.offline code{font-family:var(--f-mono); color:var(--gold)}
 @media (max-width:1100px){
   .s4,.s5{grid-column:span 6} .s7,.s8{grid-column:span 12}
   .strip{grid-template-columns:repeat(3,minmax(0,1fr))} .strip > div:first-child{grid-column:span 3}
   .inputs{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+@media (max-width:900px){ .console{grid-template-columns:1fr} .jev{grid-template-columns:repeat(2,minmax(0,1fr))} }
 @media (max-width:720px){
+  .console .ctl{grid-template-columns:1fr}
   .s4,.s5,.s6{grid-column:span 12}
   .strip{grid-template-columns:repeat(2,minmax(0,1fr))} .strip > div:first-child{grid-column:span 2}
   .clocks,.gauges{grid-template-columns:1fr}
@@ -175,11 +196,160 @@ button,select,input,textarea{font:inherit; color:var(--fg)}
 @media (prefers-reduced-motion:reduce){ *{transition:none!important; animation:none!important} }
 @keyframes pulse{50%{opacity:.35}}
 .live::before{animation:pulse 1.6s ease-in-out infinite}
+
+/* ================= HOLO HUD LAYER ================= */
+:root{
+  --bg:#03070d; --panel:rgba(8,20,34,.78); --panel-2:rgba(10,28,46,.82); --line:#123049; --line-hi:#1d4a6b;
+  --fg:#d6f3ff; --dim:#6f9bb5; --faint:#3b6079;
+  --cyan:#3fe3ff; --cyan-dim:rgba(63,227,255,.12);
+  --gold:#ffc548; --gold-dim:rgba(255,197,72,.14);
+  --f-hud:"Orbitron","Chakra Petch",system-ui,sans-serif;
+  --cut:16px;
+}
+body{
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 22%, rgba(63,227,255,.10), transparent 70%),
+    radial-gradient(ellipse 60% 50% at 50% 120%, rgba(255,197,72,.06), transparent 70%),
+    linear-gradient(rgba(63,227,255,.045) 1px, transparent 1px) 0 0/44px 44px,
+    linear-gradient(90deg, rgba(63,227,255,.045) 1px, transparent 1px) 0 0/44px 44px,
+    var(--bg);
+}
+body::after{content:""; position:fixed; inset:0; pointer-events:none; z-index:30;
+  background:repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0 1px, transparent 1px 3px);
+  mix-blend-mode:multiply}
+body::before{content:""; position:fixed; left:0; right:0; top:-30%; height:30%; pointer-events:none; z-index:31;
+  background:linear-gradient(180deg, transparent, rgba(63,227,255,.05) 60%, rgba(63,227,255,.12) 98%, transparent);
+  animation:sweep 7s linear infinite}
+@keyframes sweep{to{transform:translateY(440%)}}
+.brand h1{font-family:var(--f-hud); font-weight:900; letter-spacing:.14em; text-shadow:0 0 14px rgba(255,197,72,.55)}
+.utc{font-family:var(--f-hud); font-size:16px; letter-spacing:.1em; text-shadow:0 0 12px var(--cyan)}
+.btn{clip-path:polygon(8px 0,100% 0,100% calc(100% - 8px),calc(100% - 8px) 100%,0 100%,0 8px); border-color:var(--line-hi); background:rgba(63,227,255,.06)}
+.btn:hover{border-color:var(--cyan); color:var(--cyan); box-shadow:inset 0 0 14px rgba(63,227,255,.25)}
+.top{border-bottom:1px solid var(--line-hi); box-shadow:0 1px 0 rgba(63,227,255,.15)}
+
+/* angular holo frames */
+.panel{background:transparent; border:0; isolation:isolate;
+  clip-path:polygon(0 0,calc(100% - var(--cut)) 0,100% var(--cut),100% 100%,var(--cut) 100%,0 calc(100% - var(--cut)));
+  animation:boot .7s ease-out both}
+.panel::before{content:""; position:absolute; inset:0; z-index:-2; width:auto; height:auto; border:0;
+  background:linear-gradient(135deg, var(--cyan), rgba(29,74,107,.9) 22%, rgba(29,74,107,.9) 78%, var(--gold));
+  clip-path:inherit}
+.panel::after{content:""; position:absolute; inset:1px; z-index:-1; width:auto; height:auto; border:0;
+  background:linear-gradient(180deg, rgba(12,34,54,.94), rgba(5,14,24,.96));
+  clip-path:polygon(0 0,calc(100% - var(--cut) + .5px) 0,100% calc(var(--cut) - .5px),100% 100%,calc(var(--cut) - .5px) 100%,0 calc(100% - var(--cut) + .5px))}
+.ph{border-bottom:1px solid var(--line); padding-bottom:8px; position:relative}
+.ph::after{content:""; position:absolute; left:0; bottom:-1px; width:64px; height:2px; background:var(--cyan); box-shadow:0 0 10px var(--cyan)}
+.ph h2{font-family:var(--f-hud); font-size:12px; letter-spacing:.22em; color:var(--cyan); text-shadow:0 0 10px rgba(63,227,255,.5)}
+.ph h2 b{color:var(--gold); text-shadow:0 0 10px rgba(255,197,72,.6)}
+@keyframes boot{0%{opacity:0; filter:brightness(2.4) blur(2px); transform:translateY(6px)} 60%{opacity:.8} 100%{opacity:1; filter:none; transform:none}}
+.grid > .panel:nth-child(2){animation-delay:.08s} .grid > .panel:nth-child(3){animation-delay:.16s}
+.grid > .panel:nth-child(4){animation-delay:.24s} .grid > .panel:nth-child(5){animation-delay:.32s} .grid > .panel:nth-child(6){animation-delay:.4s}
+
+.levels,.checks,.jev{background:var(--line); border-color:var(--line-hi)}
+.levels > div,.checks li,.jev > div{background:rgba(5,14,24,.92)}
+.levels .v{font-family:var(--f-hud); font-weight:700; font-size:16px; letter-spacing:.04em; text-shadow:0 0 10px currentColor}
+.clock .t{font-family:var(--f-hud); font-weight:700; letter-spacing:.08em}
+.dir{font-family:var(--f-hud); font-weight:900; letter-spacing:.16em; text-shadow:0 0 16px currentColor}
+.chartbox,.clock,.gauge,.log,.timeline{border-color:var(--line-hi); background:rgba(3,10,18,.7)}
+.field input,.field select,.field textarea{background:rgba(3,10,18,.85); border-color:var(--line-hi)}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--cyan); box-shadow:0 0 0 1px var(--cyan), 0 0 14px rgba(63,227,255,.25); outline:none}
+
+/* bridge */
+#bgfx{position:fixed; inset:0; width:100%; height:100%; z-index:-1; pointer-events:none}
+html,body{background-color:var(--bg)}
+body{background:radial-gradient(ellipse 80% 60% at 50% 30%, #0a2238 0%, #050d18 55%, #02050a 100%) fixed}
+.hdr-sess{display:flex; gap:6px; flex-wrap:wrap}
+.utc{display:flex; flex-direction:column; align-items:flex-end; line-height:1.15}
+.utc .date{font-family:var(--f-display); font-size:10px; letter-spacing:.2em; color:var(--dim); text-transform:uppercase}
+#voiceBtn{cursor:pointer; font:inherit; font-family:var(--f-display); font-size:11px}
+#voiceBtn[aria-pressed="false"]{color:var(--dim); background:transparent}
+.bridge{display:grid; grid-template-columns:minmax(0,290px) minmax(0,1fr) minmax(0,310px); grid-template-areas:"sys center wait" "cmd cmd cmd"; gap:16px 20px; align-items:start}
+#sysPanel{grid-area:sys} .center{grid-area:center} #waitPanel{grid-area:wait} .cmd{grid-area:cmd}
+.bpanel{position:relative; padding:14px; display:flex; flex-direction:column; gap:10px; min-width:0;
+  background:linear-gradient(180deg, rgba(10,34,56,.55), rgba(4,12,22,.6)); border:1px solid var(--line-hi);
+  clip-path:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,14px 100%,0 calc(100% - 14px));
+  transition:opacity .6s ease, transform .9s cubic-bezier(.2,.8,.2,1)}
+.bpanel::before{content:""; position:absolute; top:0; left:0; width:40%; height:2px; background:var(--cyan); box-shadow:0 0 12px var(--cyan)}
+.bh{display:flex; justify-content:space-between; align-items:center; gap:8px}
+.bh h2{margin:0; font-family:var(--f-hud); font-size:12px; letter-spacing:.3em; text-transform:uppercase; color:var(--cyan); text-shadow:0 0 10px rgba(63,227,255,.6)}
+.sys,.wait{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px}
+.sys li{display:grid; grid-template-columns:12px minmax(0,1fr); gap:4px 10px; padding:7px 9px; background:rgba(63,227,255,.04); border-left:1px solid var(--line-hi)}
+.sys .dot{width:8px; height:8px; border-radius:50%; margin-top:5px; background:var(--good); box-shadow:0 0 8px var(--good)}
+.sys .dot.amber{background:var(--warn); box-shadow:0 0 8px var(--warn)} .sys .dot.red{background:var(--bad); box-shadow:0 0 8px var(--bad)}
+.sys .dot.on{animation:pulse 2.4s ease-in-out infinite}
+.sys .nm{font-family:var(--f-hud); font-size:11px; letter-spacing:.16em; color:var(--fg); display:flex; justify-content:space-between; gap:6px}
+.sys .nm small{font-family:var(--f-mono); letter-spacing:0; color:var(--dim); font-size:10px}
+.sys .act{grid-column:2; font-size:12px; color:var(--dim); overflow-wrap:anywhere}
+.sys .ex{color:var(--warn); font-family:var(--f-display); font-size:10px; letter-spacing:.12em; text-transform:uppercase}
+.wait li{padding:9px 10px; background:rgba(63,227,255,.05); border:1px solid var(--line); display:flex; flex-direction:column; gap:6px; transition:opacity .3s}
+.wait li.later{opacity:.45}
+.wait li.hl{border-color:var(--cyan); box-shadow:0 0 16px rgba(63,227,255,.25)}
+.wait .t1{display:flex; justify-content:space-between; gap:8px; align-items:center; flex-wrap:wrap}
+.wait .t1 b{font-family:var(--f-hud); font-size:12px; letter-spacing:.12em}
+.wait .t2{font-family:var(--f-mono); font-size:11px; color:var(--dim); overflow-wrap:anywhere}
+.wait .acts{display:flex; gap:6px; flex-wrap:wrap}
+.wait .acts .btn{padding:4px 10px; font-size:11px}
+.wait .empty{color:var(--dim); font-size:12.5px; background:transparent; border:1px dashed var(--line-hi)}
+.center{display:flex; flex-direction:column; align-items:center; gap:10px; min-width:0}
+.reactor{position:relative; width:100%; max-width:520px; aspect-ratio:1; margin:0 auto}
+#coreCanvas{position:absolute; inset:0; width:100%; height:100%; display:block}
+.core-center{position:absolute; inset:34%; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px; text-align:center; pointer-events:none}
+.core-center .lbl{color:var(--cyan); letter-spacing:.32em; font-size:10px}
+.core-center .verdict{font-family:var(--f-hud); font-weight:900; font-size:clamp(18px,4.6vw,32px); letter-spacing:.08em}
+#coreSub{font-size:10.5px; color:var(--fg); opacity:.8; letter-spacing:.14em; text-transform:uppercase}
+.ident{text-align:center; margin-top:-6px}
+.ident .name{font-family:var(--f-hud); font-weight:900; font-size:clamp(22px,3.2vw,30px); letter-spacing:.42em; padding-left:.42em; color:#e9fbff; text-shadow:0 0 18px rgba(63,227,255,.8), 0 0 40px rgba(63,227,255,.35)}
+.ident .status{font-family:var(--f-display); font-size:12px; letter-spacing:.22em; text-transform:uppercase; color:var(--cyan)}
+.ident .status.warn{color:var(--warn)}
+.say{min-height:2.9em; max-width:62ch; text-align:center; font-family:var(--f-mono); font-size:13px; line-height:1.45; color:#c9f4ff; text-shadow:0 0 8px rgba(63,227,255,.35)}
+.say .caret{display:inline-block; width:.55em; height:1em; vertical-align:-2px; background:var(--cyan); margin-left:2px; animation:pulse 1s steps(2) infinite}
+.telemetry{display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; width:100%}
+.readout{position:relative; padding:8px 10px 10px; display:flex; flex-direction:column; gap:2px; min-width:0;
+  background:linear-gradient(180deg, rgba(63,227,255,.08), rgba(63,227,255,.01)); border-top:1px solid var(--cyan)}
+.readout .big{font-family:var(--f-hud); font-weight:700; font-size:18px; letter-spacing:.04em; text-shadow:0 0 12px currentColor; line-height:1.15; overflow-wrap:anywhere}
+.readout .big .dir{font-size:18px!important}
+.readout .note{font-size:11px}
+.readout .bar{display:block; position:relative; height:3px; width:100%; background:rgba(111,155,181,.18); margin-top:4px; font-style:normal}
+.readout .bar b{position:absolute; top:0; bottom:0; left:0; width:0; background:var(--cyan); box-shadow:0 0 8px var(--cyan); transition:width .8s cubic-bezier(.2,.8,.2,1)}
+.why{text-align:center; font-family:var(--f-mono); font-size:12px; color:var(--dim)}
+.cmd{display:flex; flex-direction:column; gap:10px; padding:12px 14px; border:1px solid var(--line-hi); background:rgba(4,14,26,.7);
+  clip-path:polygon(14px 0,calc(100% - 14px) 0,100% 50%,calc(100% - 14px) 100%,14px 100%,0 50%)}
+.cmd-row{display:flex; gap:8px; padding-inline:10px}
+.cmd-row input{flex:1; min-width:0; background:rgba(2,8,15,.9); border:1px solid var(--line-hi); padding:9px 12px; font-family:var(--f-mono); font-size:14px; color:var(--fg)}
+.cmd-row input:focus{outline:none; border-color:var(--cyan); box-shadow:0 0 0 1px var(--cyan), 0 0 16px rgba(63,227,255,.3)}
+.mic[aria-pressed="true"]{border-color:var(--bad); color:var(--bad); box-shadow:0 0 14px rgba(255,90,95,.4)}
+.chips{display:flex; gap:8px; flex-wrap:wrap; justify-content:center; padding-inline:10px}
+.qc{font-family:var(--f-display); font-size:11.5px; letter-spacing:.14em; text-transform:uppercase; font-weight:600; color:var(--cyan); background:rgba(63,227,255,.07); border:1px solid rgba(63,227,255,.45); padding:6px 12px; border-radius:999px; cursor:pointer}
+.qc:hover{background:rgba(63,227,255,.16); box-shadow:0 0 14px rgba(63,227,255,.3)}
+.qc[aria-pressed="true"]{color:var(--warn); border-color:var(--warn); background:var(--warn-dim)}
+/* boot + focus */
+.booting .bpanel#sysPanel{transform:translateX(-40px); opacity:0}
+.booting .bpanel#waitPanel{transform:translateX(40px); opacity:0}
+.booting .telemetry,.booting .cmd,.booting .ident{opacity:0}
+.telemetry,.cmd,.ident{transition:opacity .8s ease .2s}
+.focus .bpanel,.focus .telemetry,.focus .grid,.focus .why{opacity:.18}
+.focus .bpanel:hover,.focus .grid:hover{opacity:1}
+.scanline{position:fixed; left:0; right:0; top:0; height:3px; z-index:40; pointer-events:none; background:var(--cyan); box-shadow:0 0 18px 4px rgba(63,227,255,.6); animation:scan 1.6s cubic-bezier(.4,0,.2,1) forwards}
+@keyframes scan{from{transform:translateY(0)} to{transform:translateY(100vh); opacity:0}}
+body::before{display:none}
+.panel::before{background:linear-gradient(135deg, var(--cyan), rgba(29,74,107,.9) 22%, rgba(29,74,107,.9) 78%, rgba(214,243,255,.7))}
+@media (max-width:1100px){
+  .bridge{grid-template-columns:minmax(0,1fr) minmax(0,1fr); grid-template-areas:"center center" "cmd cmd" "sys wait"}
+  .telemetry{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
+@media (max-width:720px){
+  .bridge{grid-template-columns:minmax(0,1fr); grid-template-areas:"center" "cmd" "wait" "sys"}
+  .telemetry{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .cmd{clip-path:none}
+  .hdr-sess{order:5}
+}
+@media (prefers-reduced-motion:reduce){ .scanline{display:none} }
 </style>
 </head>
 <body>
 
-<div class="wrap">
+<canvas id="bgfx" aria-hidden="true"></canvas>
+<div class="wrap booting" id="wrap">
   <header class="top">
     <div class="brand">
       <h1>XAU<span>USD</span></h1>
@@ -187,7 +357,9 @@ button,select,input,textarea{font:inherit; color:var(--fg)}
     </div>
     <span id="src" class="src sample">Sample data</span>
     <div class="spacer"></div>
-    <div class="utc"><span id="utcNow">--:--:--</span><small>UTC</small></div>
+    <div class="hdr-sess"><span id="hdrLon" class="chip c-dim">LDN —</span><span id="hdrNy" class="chip c-dim">NY —</span></div>
+    <div class="utc"><span id="utcNow">--:--:--</span><small>UTC</small><div id="utcDate" class="date">—</div></div>
+    <button class="chip c-cyan" id="voiceBtn" type="button" aria-pressed="true">Voice: ON</button>
     <div class="tools">
       <label class="btn primary" for="fileIn">Load JSON</label>
       <input id="fileIn" type="file" accept=".json,application/json" multiple hidden>
@@ -196,16 +368,99 @@ button,select,input,textarea{font:inherit; color:var(--fg)}
     </div>
   </header>
 
-  <section class="strip" aria-label="Status summary">
-    <div>
-      <span class="lbl">RISK gate verdict</span>
-      <div id="verdict" class="verdict v-WAIT">—</div>
-      <span id="verdictWhy" class="note"></span>
+  <section class="bridge" id="bridge" aria-label="CARDINAL bridge">
+    <aside class="bpanel" id="sysPanel" aria-labelledby="h-sys">
+      <div class="bh"><h2 id="h-sys">Systems</h2><span id="sysCount" class="note"></span></div>
+      <ul class="sys" id="sysList"></ul>
+    </aside>
+
+    <div class="center">
+      <div class="reactor" id="reactor">
+        <canvas id="coreCanvas" aria-hidden="true"></canvas>
+        <div class="core-center">
+          <span class="lbl">RISK gate</span>
+          <div id="verdict" class="verdict v-WAIT">—</div>
+          <span id="coreSub" class="mono"></span>
+        </div>
+      </div>
+      <div class="ident">
+        <div class="name">CARDINAL</div>
+        <div id="cardStatus" class="status">Initialising…</div>
+      </div>
+      <div id="say" class="say" aria-live="polite"></div>
+      <div class="telemetry">
+        <div class="readout"><span class="lbl">Direction</span><div id="sDir" class="big">—</div><span id="sSess" class="note"></span><i class="bar"><b id="barDir"></b></i></div>
+        <div class="readout"><span class="lbl">R:R to T1</span><div id="sRR" class="big">—</div><span id="sRRn" class="note"></span><i class="bar"><b id="barRR"></b></i></div>
+        <div class="readout"><span class="lbl">Confidence</span><div id="sConf" class="big">—</div><span id="sConfn" class="note"></span><i class="bar"><b id="barConf"></b></i></div>
+        <div class="readout"><span class="lbl">Loss left</span><div id="sLoss" class="big">—</div><span id="sLossn" class="note"></span><i class="bar"><b id="barLoss"></b></i></div>
+        <div class="readout"><span class="lbl">Next range</span><div id="sNext" class="big">—</div><span id="sNextn" class="note"></span><i class="bar"><b id="barNext"></b></i></div>
+      </div>
+      <div id="verdictWhy" class="why"></div>
     </div>
-    <div><span class="lbl">Direction · session</span><div id="sDir" class="big">—</div><span id="sSess" class="note"></span></div>
-    <div><span class="lbl">R:R to T1</span><div id="sRR" class="big">—</div><span id="sRRn" class="note"></span></div>
-    <div><span class="lbl">Confidence</span><div id="sConf" class="big">—</div><span id="sConfn" class="note"></span></div>
-    <div><span class="lbl">Daily loss left</span><div id="sLoss" class="big">—</div><span id="sLossn" class="note"></span></div>
+
+    <aside class="bpanel" id="waitPanel" aria-labelledby="h-wait">
+      <div class="bh"><h2 id="h-wait">Waiting on you</h2><span id="waitCount" class="chip c-dim">0</span></div>
+      <ul class="wait" id="waitList"></ul>
+      <span class="note">Approve records your sign-off. RISK still has the final say, and nothing places orders.</span>
+    </aside>
+
+    <form class="cmd" id="cmdForm" autocomplete="off">
+      <div class="cmd-row">
+        <label for="cmdIn" class="lbl" hidden>Ask CARDINAL</label>
+        <input id="cmdIn" type="text" placeholder="Ask CARDINAL anything about the desk…  or press Talk">
+        <button class="btn mic" id="micBtn" type="button" aria-pressed="false" title="Talk to CARDINAL hands-free">Talk</button>
+        <button class="btn primary" type="submit">Send</button>
+      </div>
+      <div class="chips">
+        <button type="button" class="qc" data-cmd="london brief">London brief</button>
+        <button type="button" class="qc" data-cmd="ny brief">NY brief</button>
+        <button type="button" class="qc" data-cmd="status">Status</button>
+        <button type="button" class="qc" data-cmd="what's waiting">What's waiting</button>
+        <button type="button" class="qc" data-cmd="run analyst">Run ANALYST</button>
+        <button type="button" class="qc" data-cmd="focus mode" id="focusChip">Focus mode</button>
+      </div>
+    </form>
+  </section>
+
+  <section class="panel" aria-labelledby="h-con">
+    <div class="ph"><h2 id="h-con"><b>00</b>Desk console</h2>
+      <div class="row" style="display:flex; gap:6px; flex-wrap:wrap">
+        <span id="srvChip" class="chip c-dim">server: checking</span>
+        <span id="kGem" class="chip c-na">gemini</span><span id="kGrok" class="chip c-na">grok</span><span id="kGroq" class="chip c-na">groq</span><span id="kJev" class="chip c-na">jev</span>
+      </div></div>
+    <div id="offline" class="offline" hidden>Read-only mode. To run ANALYST from here, open a terminal in the repo folder, run <code>python3 serve.py</code>, then open <code>http://127.0.0.1:8765</code>. Your keys stay in <code>.env</code> and never reach the browser.</div>
+    <div class="console">
+      <div class="ctl">
+        <div class="field"><label class="lbl" for="cSession">Session</label><select id="cSession"><option value="London">London</option><option value="NewYork">New York</option></select></div>
+        <div class="field"><label class="lbl" for="cProvider">ANALYST model</label><select id="cProvider"><option value="gemini">Gemini</option><option value="grok">Grok (xAI)</option><option value="groq">Groq</option></select></div>
+        <div class="field"><span class="lbl">Second opinion</span><label class="check" for="cJev"><input id="cJev" type="checkbox"> Jev review (TypeSafe)</label></div>
+        <div class="field wide"><label class="lbl" for="cContext">Extra data for ANALYST (volume profile, whale, macro)</label><textarea id="cContext" spellcheck="false" style="min-height:64px" placeholder="VP: VAH 2662, POC 2655, LVN 2664-2668. Leave empty if you have none; ANALYST marks it not_available."></textarea></div>
+        <div class="wide row">
+          <button class="btn primary" id="cRun" type="button">Run ANALYST</button>
+          <button class="btn" id="cGate" type="button">Check with Python gate</button>
+          <button class="btn" id="cJevOnly" type="button">Jev review only</button>
+        </div>
+      </div>
+      <div class="log" aria-live="polite">
+        <span class="lbl">Run log</span>
+        <div id="cLog"><div class="line">Uses the candles loaded in the HUD. Sample candles are synthetic.</div></div>
+        <div id="jevBox" hidden>
+          <div class="row" style="display:flex; justify-content:space-between; gap:8px; margin-bottom:6px"><span class="lbl">Jev review · advisory</span><span id="jevChip" class="chip c-dim">—</span></div>
+          <div class="jev">
+            <div><span class="lbl">Data bias</span><span id="jBias" class="v">—</span></div>
+            <div><span class="lbl">Breakout 0–3</span><span id="jBreak" class="v">—</span></div>
+            <div><span class="lbl">Consistent</span><span id="jCons" class="v">—</span></div>
+            <div><span class="lbl">Unsupported</span><span id="jUns" class="v">—</span></div>
+          </div>
+          <ul class="flags" id="jFlags"></ul>
+        </div>
+        <div id="decBox" hidden style="display:flex; flex-direction:column; gap:8px">
+          <span class="lbl">Your decision (CARDINAL asks you before anything leaves the desk)</span>
+          <div class="field"><label class="lbl" for="cNote">Note</label><input id="cNote" type="text" placeholder="optional"></div>
+          <div class="row"><button class="btn go" id="cApprove" type="button">Approve plan</button><button class="btn stop" id="cReject" type="button">Reject plan</button><span id="decState" class="note"></span></div>
+        </div>
+      </div>
+    </div>
   </section>
 
   <section class="panel s12" id="pastePanel" hidden>
@@ -284,7 +539,7 @@ button,select,input,textarea{font:inherit; color:var(--fg)}
     <section class="panel s4" aria-labelledby="h-risk">
       <div class="ph"><h2 id="h-risk"><b>04</b>RISK gate</h2><span id="riskChip" class="chip c-dim">—</span></div>
       <ul class="checks" id="checks"></ul>
-      <span class="note">Browser mirror of <span class="mono">risk_gate.py</span> with your config. The Python gate is the authority before anything leaves the desk.</span>
+      <span class="note" id="riskSrc">Browser mirror of <span class="mono">risk_gate.py</span>. The Python gate is the authority before anything leaves the desk.</span>
     </section>
 
     <!-- Daily loss -->
@@ -349,9 +604,10 @@ const SESSIONS=["London","NewYork"], DIRS=["long","short","flat"];
 const VP=["strong","moderate","weak","not_available"], WH=["supportive","opposing","neutral","not_available"];
 const TZ={London:"Europe/London", NewYork:"America/New_York"};
 
-let S;
+let S, SERVER_CFG=null; // SERVER_CFG: thresholds serve.py's Python gate uses
+const baseCfg=()=>({...DEFAULT_CFG, ...(SERVER_CFG||{})});
 function sampleState(){
-  return {plan:SAMPLE_PLAN, candles:SAMPLE_CANDLES, pnl:-120, macro:{bias:"not_available", note:""}, news:[], cfg:{...DEFAULT_CFG},
+  return {plan:SAMPLE_PLAN, candles:SAMPLE_CANDLES, pnl:-120, macro:{bias:"not_available", note:""}, news:[], cfg:baseCfg(),
     sample:true, label:"Sample: examples/plan_long.json + candles_london.json (synthetic, not market prices)", files:[]};
 }
 S = sampleState();
@@ -493,7 +749,7 @@ function ingest(obj, name){
 }
 function leaveSample(){
   if(S.sample){ // user data replaces sample wholesale so sample values never mix with real ones
-    S={plan:null, candles:null, pnl:0, macro:{bias:"not_available",note:""}, news:[], cfg:{...DEFAULT_CFG}, sample:false, label:"", files:[]};
+    S={plan:null, candles:null, pnl:0, macro:{bias:"not_available",note:""}, news:[], cfg:baseCfg(), sample:false, label:"", files:[]};
   }
 }
 function loadTexts(items){
@@ -504,7 +760,7 @@ function loadTexts(items){
     catch(e){ errs.push(`${name}: ${e.message}`); }
   }
   if(!S.label || S.label.startsWith("Loaded")) S.label="Loaded: "+S.files.join(" · ");
-  syncInputs(); render();
+  S.runId=null; S.jev=null; syncInputs(); changed();
   return errs.join("\n");
 }
 async function loadFiles(files){
@@ -596,7 +852,9 @@ function render(){
   $("footSrc").textContent="Source: "+(S.label||"nothing loaded yet");
 
   // gate
-  const d = plan ? evaluate(plan, S.candles, S.pnl, cfg, now, S.news) : null;
+  const d = S.py ? S.py : plan ? evaluate(plan, S.candles, S.pnl, cfg, now, S.news) : null;
+  $("riskSrc").innerHTML = S.py ? `Result from the Python gate (<span class="mono">risk_gate.py</span> via serve.py), checked ${esc(S.pyAt)}.`
+    : `Browser mirror of <span class="mono">risk_gate.py</span>.${API.online?" Python re-check pending.":" The Python gate is the authority before anything leaves the desk."}`;
   const v=$("verdict");
   if(!d){ v.className="verdict v-WAIT"; v.textContent="NO PLAN"; $("verdictWhy").textContent="Load an ANALYST plan JSON to run the gate."; }
   else {
@@ -667,6 +925,7 @@ function render(){
   $("tradeRisk").textContent = ok&&dir!=="flat"&&isNum(ent)&&isNum(plan.stop) ? `Stop distance $${Math.abs(ent-plan.stop).toFixed(2)}/oz, which is $${(Math.abs(ent-plan.stop)*100).toFixed(0)} per 1.00 lot (100 oz). Sizing stays with you.` : "";
 
   if(candleErr) $("loadErr").textContent="Candles: "+candleErr;
+  bridgeUpdate(d, rr, conf, frac);
   tick();
 }
 
@@ -705,6 +964,14 @@ function tick(){
     else if(pl&&isNum(pl.orb_high)) orbEl.innerHTML=`<span class="hi">H ${f2(pl.orb_high)}</span><span class="lo">L ${f2(pl.orb_low)}</span><span class="note">from plan</span>`;
     else orbEl.innerHTML=`<span class="note">No range loaded</span>`;
   }
+  { let best=null; const lbl={London:"LDN",NewYork:"NY"};
+    for(const s of SESSIONS){ const si=sessionInfo(s,now), el=$(s==="London"?"hdrLon":"hdrNy");
+      chip(el, `${lbl[s]} ${!open?"closed":si.phase==="pre"?"in "+hm(si.until).slice(0,5):si.phase==="forming"?"forming":"set"}`, !open?"c-dim":si.phase==="forming"?"c-warn live":si.phase==="set"?"c-good":"c-cyan");
+      let st=si.start; if(si.phase!=="pre") st+=86400000; for(let g=0; g<4 && !marketOpen(new Date(st)); g++) st+=86400000; if(!best||st<best.st) best={s,st,forming:si.phase==="forming",end:si.end}; }
+    const forming=SESSIONS.map(s=>({s,si:sessionInfo(s,now)})).find(x=>x.si.phase==="forming");
+    if(forming){ $("sNext").textContent=hm(forming.si.until); $("sNextn").textContent=`${SNAME(forming.s)} range locks in`; $("barNext").style.width=(100-forming.si.until/(cfg.orb_minutes*600)).toFixed(1)+"%"; }
+    else { const ms=best.st-now.getTime(); $("sNext").textContent=hm(ms); $("sNextn").textContent=`${SNAME(best.s)} ORB${open?"":" · market closed"}`; $("barNext").style.width=Math.max(0,100-ms/864000).toFixed(1)+"%"; }
+    $("utcDate").textContent=now.toLocaleDateString("en-GB",{weekday:"short",day:"2-digit",month:"short",year:"numeric",timeZone:"UTC"}); }
   $("dstNote").textContent=dst.length?"Clock check: "+dst.join("; ")+". Adjust orb_start in config if your broker follows local time.":"";
   // timeline
   const pct=ms=>((ms%86400000)/86400000*100);
@@ -722,24 +989,516 @@ function tick(){
 function syncInputs(){
   $("inPnl").value=S.pnl; $("inMacro").value=S.macro.bias; $("inMacroNote").value=S.macro.note; $("inNews").value=(S.news||[]).join(", ");
 }
-$("inPnl").addEventListener("input",e=>{ const v=parseFloat(e.target.value); S.pnl=isNum(v)?v:0; render(); });
+$("inPnl").addEventListener("input",e=>{ const v=parseFloat(e.target.value); S.pnl=isNum(v)?v:0; changed(); });
 $("inMacro").addEventListener("change",e=>{ S.macro.bias=e.target.value; render(); });
 $("inMacroNote").addEventListener("input",e=>{ S.macro.note=e.target.value; render(); });
-$("inNews").addEventListener("change",e=>{ S.news=e.target.value.split(",").map(x=>x.trim()).filter(Boolean); render(); });
+$("inNews").addEventListener("change",e=>{ S.news=e.target.value.split(",").map(x=>x.trim()).filter(Boolean); changed(); });
 $("fileIn").addEventListener("change",e=>{ loadFiles([...e.target.files]); e.target.value=""; });
 $("pasteBtn").addEventListener("click",()=>{ $("pastePanel").hidden=false; $("pasteTxt").focus(); });
 $("pasteClose").addEventListener("click",()=>{ $("pastePanel").hidden=true; });
 $("pasteApply").addEventListener("click",()=>{ const err=loadTexts([{name:"pasted",text:$("pasteTxt").value}]); $("pasteErr").textContent=err; if(!err) $("pastePanel").hidden=true; });
-$("resetBtn").addEventListener("click",()=>{ S=sampleState(); $("loadErr").textContent=""; syncInputs(); render(); });
+$("resetBtn").addEventListener("click",()=>{ S=sampleState(); $("loadErr").textContent=""; syncInputs(); changed(); renderConsole(); });
 let dragDepth=0;
 addEventListener("dragenter",e=>{ if([...(e.dataTransfer?.types||[])].includes("Files")){ dragDepth++; $("drop").hidden=false; e.preventDefault(); }});
 addEventListener("dragover",e=>e.preventDefault());
 addEventListener("dragleave",()=>{ if(--dragDepth<=0){dragDepth=0; $("drop").hidden=true;} });
 addEventListener("drop",e=>{ e.preventDefault(); dragDepth=0; $("drop").hidden=true; if(e.dataTransfer?.files?.length) loadFiles([...e.dataTransfer.files]); });
 
-syncInputs(); render();
+/* ---------- desk console (talks to serve.py on localhost) ---------- */
+const API={online:false, keys:{}, models:{}};
+const LOCAL=/^(127\.0\.0\.1|localhost|\[::1\])$/.test(location.hostname) && location.protocol.startsWith("http");
+async function api(path, body){
+  const r=await fetch(path, body?{method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body)}:{});
+  let j; try{ j=await r.json(); }catch(e){ throw new Error(`HTTP ${r.status}`); }
+  if(!r.ok) throw new Error(j.error||`HTTP ${r.status}`);
+  return j;
+}
+function log(msg, cls=""){
+  const el=document.createElement("div"); el.className="line "+cls;
+  el.textContent=new Date().toISOString().slice(11,19)+"  "+msg;
+  const box=$("cLog"); box.prepend(el); while(box.children.length>8) box.lastChild.remove();
+}
+let gateTimer=null;
+function changed(){ S.py=null; render(); if(API.online && S.plan){ clearTimeout(gateTimer); gateTimer=setTimeout(pyGate,350); } }
+async function pyGate(quiet=true){
+  if(!API.online || !S.plan) return;
+  try{
+    const j=await api("/api/gate",{plan:S.plan, candles:S.candles||[], pnl:S.pnl, news:S.news, now:S.news.length?new Date().toISOString():null});
+    S.py=j.risk; S.pyAt=new Date().toISOString().slice(11,19)+" UTC"; render();
+    if(!quiet) log(`Python gate: ${j.risk.verdict}`, j.risk.verdict==="REJECT"?"err":"ok");
+  }catch(e){ log("Python gate failed: "+e.message,"err"); }
+}
+function renderJev(r){
+  $("jevBox").hidden=!r;
+  if(!r) return;
+  if(r.error){ chip($("jevChip"),"error","c-bad"); ["jBias","jBreak","jCons","jUns"].forEach(id=>$(id).textContent="—"); $("jFlags").innerHTML=`<li>${esc(r.error)}</li>`; return; }
+  chip($("jevChip"), r.agrees?"agrees":"disagrees", r.agrees?"c-good":"c-warn");
+  const pc=x=>isNum(x)?Math.round(x*100)+"%":"—";
+  $("jBias").textContent=(r.data_bias||"—")+(isNum(r.data_bias_confidence)?` ${pc(r.data_bias_confidence)}`:"");
+  $("jBreak").textContent=isNum(r.breakout_quality_0_to_3)?r.breakout_quality_0_to_3.toFixed(1):"—";
+  $("jCons").textContent=pc(r.plan_consistent_p); $("jUns").textContent=pc(r.unsupported_claims_p);
+  $("jFlags").innerHTML=(r.flags||[]).map(f=>`<li>${esc(f)}</li>`).join("");
+}
+function renderConsole(){
+  const on=API.online;
+  $("offline").hidden=on;
+  chip($("srvChip"), on?"serve.py online":"server offline", on?"c-good live":"c-dim");
+  const k=(id,name,label)=>chip($(id), `${label} ${API.keys[name]?"key set":"no key"}${API.models[name]?" · "+API.models[name]:""}`, API.keys[name]?"c-good":"c-na");
+  k("kGem","gemini","gemini"); k("kGrok","grok","grok"); k("kGroq","groq","groq"); k("kJev","typesafe","jev");
+  const hasCandles=Array.isArray(S.candles)&&S.candles.length>0;
+  $("cRun").disabled=!on||!hasCandles||!API.keys[$("cProvider").value];
+  $("cGate").disabled=!on||!S.plan;
+  $("cJevOnly").disabled=!on||!S.plan||!hasCandles||!API.keys.typesafe;
+  $("cJev").disabled=!on||!API.keys.typesafe; if($("cJev").disabled) $("cJev").checked=false;
+  $("decBox").hidden=!S.runId;
+  renderJev(S.jev);
+  if(typeof renderSystems==="function" && CORE) renderSystems();
+}
+async function connect(){
+  if(!LOCAL){ API.online=false; renderConsole(); return; }
+  try{
+    const j=await api("/api/status");
+    API.online=true; API.keys=j.keys||{}; API.models=j.models||{};
+    if(j.config){ SERVER_CFG=j.config; S.cfg=baseCfg(); }
+    if(j.default_provider) $("cProvider").value=j.default_provider;
+    API.chat=j.chat_provider||null;
+    log("Connected to serve.py. Keys: "+Object.entries(API.keys).map(([n,v])=>`${n} ${v?"set":"missing"}`).join(", "));
+    renderConsole(); changed(); refreshWaiting();
+  }catch(e){ API.online=false; renderConsole(); log("serve.py not reachable: "+e.message,"err"); }
+}
+async function busy(btn, fn){
+  const t=btn.textContent; btn.disabled=true; btn.textContent="Working…";
+  try{ await fn(); } finally{ btn.textContent=t; renderConsole(); }
+}
+$("cProvider").addEventListener("change",renderConsole);
+$("cSession").addEventListener("change",renderConsole);
+$("cRun").addEventListener("click",()=>busy($("cRun"), async()=>{
+  const provider=$("cProvider").value, session=$("cSession").value, useJev=$("cJev").checked;
+  log(`Asking ${provider} for a ${session} ORB plan${useJev?" + Jev review":""}…`);
+  try{
+    const r=await api("/api/run",{candles:S.candles, session, provider, context:$("cContext").value, pnl:S.pnl, jev:useJev, news:S.news, now:S.news.length?new Date().toISOString():null});
+    S.plan=r.plan; S.py=r.risk; S.pyAt=new Date().toISOString().slice(11,19)+" UTC"; S.jev=r.jev_review||null; S.runId=r.run_id;
+    S.label=`ANALYST ${provider} (${r.model}) · run ${r.run_id}`+(S.sample?" · on SAMPLE candles (synthetic)":"");
+    $("decState").textContent=""; $("cNote").value="";
+    log(`Plan ${String(r.plan?.direction||"?").toUpperCase()} · RISK ${r.risk.verdict} · saved runs/${r.run_id}.json`, r.risk.verdict==="REJECT"?"err":"ok");
+    render(); refreshWaiting();
+    speak(`${String(r.plan?.direction||"?").toUpperCase()} plan from ${provider}. RISK says ${r.risk.verdict.replace("_"," ")}.${r.jev_review&&!r.jev_review.error?` Jev ${r.jev_review.agrees?"agrees":"disagrees"}.`:""} It's waiting on you.`);
+  }catch(e){ log(`${provider} run failed: ${e.message}`,"err"); speak(`${provider} run failed. ${e.message}`); }
+}));
+$("cGate").addEventListener("click",()=>busy($("cGate"),()=>pyGate(false)));
+$("cJevOnly").addEventListener("click",()=>busy($("cJevOnly"), async()=>{
+  log("Asking Jev to review the current plan…");
+  try{ const r=await api("/api/jev",{plan:S.plan, candles:S.candles, context:$("cContext").value}); S.jev=r.jev_review; log(`Jev ${S.jev.agrees?"agrees":"disagrees"}`, S.jev.agrees?"ok":"err"); }
+  catch(e){ log("Jev review failed: "+e.message,"err"); }
+}));
+async function decide(value){
+  if(!S.runId) return;
+  try{ const r=await api("/api/decision",{run_id:S.runId, decision:value, note:$("cNote").value});
+    $("decState").textContent=`${value} at ${r.decision.at.slice(11,19)} UTC, saved to runs/${S.runId}.json`;
+    log(`You ${value} run ${S.runId}`, value==="approved"?"ok":"err"); W.local[S.runId]=value; refreshWaiting(); render();
+  }catch(e){ log("Could not save decision: "+e.message,"err"); }
+}
+$("cApprove").addEventListener("click",()=>decide("approved"));
+$("cReject").addEventListener("click",()=>decide("rejected"));
+
+/* =================== CARDINAL bridge =================== */
+const OPERATOR = (()=>{ try{ return localStorage.getItem("cardinal.operator")||"Mazhar"; }catch(e){ return "Mazhar"; } })();
+const RM = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const CORE = {conf:null, rr:null, lossFrac:0, verdict:"WAIT", minConf:.55, minRR:1.8, amp:0, speaking:false, speed:1, boot0:performance.now()};
+const W = {server:[], later:new Set(), local:{}};
+let voiceOn=true, focus=false, lastCmd="—";
+const clamp0 = v => Math.max(0, v);                       // canvas stability rule: never a negative radius
+const easeOut = t => 1-Math.pow(1-Math.max(0,Math.min(1,t)),3);
+
+/* ---- per-render hook ---- */
+function bridgeUpdate(d, rr, conf, frac){
+  CORE.conf=isNum(conf)?conf:null; CORE.rr=isNum(rr)?rr:null; CORE.lossFrac=frac||0;
+  CORE.verdict=d?d.verdict:"WAIT"; CORE.minConf=S.cfg.min_confidence; CORE.minRR=S.cfg.min_rr;
+  const plan=S.plan;
+  $("coreSub").textContent = plan ? `${plan.direction||"?"} · ${plan.session==="NewYork"?"New York":plan.session||"?"}` : "awaiting plan";
+  const setBar=(id,f,col)=>{ const b=$(id); b.style.width=(Math.max(0,Math.min(1,f))*100).toFixed(1)+"%"; if(col){b.style.background=col; b.style.boxShadow=`0 0 8px ${col}`;} };
+  setBar("barRR", isNum(rr)?rr/4:0, isNum(rr)&&rr>=S.cfg.min_rr?"var(--good)":"var(--warn)");
+  setBar("barConf", isNum(conf)?conf:0, isNum(conf)&&conf>=S.cfg.min_confidence?"var(--good)":"var(--warn)");
+  setBar("barLoss", 1-(frac||0), frac>=1?"var(--bad)":frac>=.7?"var(--warn)":"var(--cyan)");
+  setBar("barDir", plan&&plan.direction&&plan.direction!=="flat"?1:.15, plan?.direction==="long"?"var(--good)":plan?.direction==="short"?"var(--bad)":"var(--warn)");
+  renderSystems(); renderWaiting();
+}
+
+/* ---- SYSTEMS ---- */
+function sysRow(name, sub, state, act, example){
+  return `<li><span class="dot ${state} ${state===""?"on":""}"></span><div><div class="nm">${esc(name)}<small>${esc(sub)}</small></div></div><div class="act">${example?'<span class="ex">Example data · </span>':""}${esc(act)}</div></li>`;
+}
+function renderSystems(){
+  const on=API.online, k=API.keys, prov=$("cProvider").value, rows=[];
+  let warn=0; const st=c=>{ if(c) warn++; return c; };
+  rows.push(sysRow("CARDINAL", API.chat?`voice · ${API.chat}`:"local commands", API.online&&!API.chat?"amber":"", `${API.online&&!API.chat?"No chat key; local commands only. ":""}Last: ${lastCmd}`));
+  const aKey=k[prov];
+  rows.push(sysRow("ANALYST", `${prov} · ${API.models[prov]||"—"}`, st(!on||!aKey?"amber":""),
+    !on ? "Read-only: serve.py not running" : !aKey ? `${({grok:"XAI",groq:"GROQ",gemini:"GEMINI"})[prov]}_API_KEY missing in .env` :
+    S.runId ? `Wrote run ${S.runId}` : "Ready. Load candles, then Run ANALYST"));
+  const mb=S.macro.bias;
+  rows.push(sysRow("MACRO","bias feed", st(mb==="not_available"?"amber":""), mb==="not_available"?"No bias loaded. Set it in Desk inputs":`${mb}${S.macro.note?" · "+S.macro.note:""}`));
+  const v=CORE.verdict;
+  rows.push(sysRow("RISK", S.py?"python gate":"browser mirror", v==="REJECT"?(warn++,"red"):v==="WAIT"?"amber":"", v==="WAIT"?"No plan to check":`${v.replace("_"," ")}${S.py?" · python":" · mirror"}`));
+  const jk=k.typesafe;
+  rows.push(sysRow("JEV","typesafe review", st(!on||!jk?"amber":(S.jev&&!S.jev.agrees?"amber":"")),
+    !on?"Offline":!jk?"TYPESAFE_API_KEY missing (optional)":S.jev?(S.jev.error?"Error: "+S.jev.error:S.jev.agrees?"Agrees with the plan":"Disagrees: "+(S.jev.flags||[]).join("; ")):"Ready"));
+  let bars=null; try{ bars=S.candles?normalizeCandles(S.candles):null; }catch(e){}
+  rows.push(sysRow("DATA FEED","candles", st(!bars?"amber":""), bars?`${bars.length} bars${bars[0].t?" · "+bars[0].t.toISOString().slice(0,10):""}`:"No candles loaded", S.sample&&!!bars));
+  rows.push(sysRow("SERVE.PY","127.0.0.1", st(on?"":"amber"), on?"Online · keys stay in .env":"Not running · python3 serve.py"));
+  $("sysList").innerHTML=rows.join("");
+  $("sysCount").textContent=warn?`${warn} need attention`:"all nominal";
+  const cs=$("cardStatus"); cs.className="status"+(warn?" warn":"");
+  cs.textContent= document.getElementById("wrap").classList.contains("booting") ? "Initialising…" :
+    `${API.online?"Online":"Read-only"} · ${warn?warn+(warn>1?" items need":" item needs")+" attention":"all systems normal"}`;
+}
+
+/* ---- WAITING ON YOU ---- */
+function planKey(p){ return "local:"+[p.session,p.direction,p.entry,p.stop,(p.targets||[]).join("/")].join("|"); }
+function waitingItems(){
+  const items=[];
+  for(const r of W.server) if(!W.local[r.run_id]) items.push({key:r.run_id, run:true, plan:r.plan, verdict:r.risk?.verdict, reasons:r.risk?.reasons||[], who:`${r.provider} · ${r.run_id.slice(9,15).replace(/(\d\d)(\d\d)(\d\d)/,"$1:$2")} UTC`, jev:r.jev});
+  if(S.plan && !S.runId && !validatePlan(S.plan).length){
+    const k=planKey(S.plan);
+    if(!W.local[k]) items.unshift({key:k, run:false, plan:S.plan, verdict:CORE.verdict, reasons:[], who:S.sample?"sample plan · example data":"loaded plan"});
+  }
+  items.sort((a,b)=>(W.later.has(a.key)?1:0)-(W.later.has(b.key)?1:0));
+  return items;
+}
+function renderWaiting(){
+  const items=waitingItems(), live=items.filter(i=>!W.later.has(i.key)).length;
+  chip($("waitCount"), String(live), live?"c-warn":"c-dim");
+  $("waitList").innerHTML = items.length ? items.map(i=>{
+    const p=i.plan||{}, blocked=i.verdict==="REJECT", flat=p.direction==="flat";
+    const vc=i.verdict==="APPROVE"?"c-good":i.verdict==="REJECT"?"c-bad":"c-warn";
+    return `<li data-key="${esc(i.key)}" class="${W.later.has(i.key)?"later":""}">
+      <div class="t1"><b>${esc(String(p.direction||"?").toUpperCase())} · ${esc(p.session==="NewYork"?"NY":p.session||"?")}</b><span class="chip ${vc}">RISK ${esc((i.verdict||"?").replace("_"," "))}</span></div>
+      <div class="t2">${flat?"stand aside":`E ${f2(p.entry)} · S ${f2(p.stop)} · T1 ${f2(p.targets?.[0])} · ${isNum(p.reward_risk)?p.reward_risk+"R":""}`}</div>
+      <div class="t2">${esc(i.who)}${i.jev?` · Jev ${i.jev.agrees?"agrees":"disagrees"}`:""}</div>
+      <div class="acts">
+        ${blocked?`<button class="btn stop" data-act="dismiss" type="button">Dismiss (RISK blocked)</button>`:`<button class="btn go" data-act="approve" type="button">Approve</button>`}
+        <button class="btn" data-act="later" type="button">${W.later.has(i.key)?"Bring back":"Later"}</button>
+        ${i.run?`<button class="btn" data-act="view" type="button">View</button>`:""}
+      </div></li>`;}).join("")
+    : `<li class="empty">Nothing waiting. Run ANALYST after a range sets and the plan lands here.</li>`;
+}
+$("waitList").addEventListener("click", async e=>{
+  const btn=e.target.closest("button[data-act]"); if(!btn) return;
+  const li=btn.closest("li"), key=li.dataset.key, act=btn.dataset.act;
+  const item=waitingItems().find(i=>i.key===key); if(!item) return;
+  if(act==="later"){ W.later.has(key)?W.later.delete(key):W.later.add(key); renderWaiting(); return; }
+  if(act==="view"){ S.plan=item.plan; S.py=null; S.runId=key; S.label=`Run ${key}`; render(); renderConsole(); speak(`Loaded run ${key.slice(9,15).replace(/(\d\d)(\d\d)(\d\d)/,"$1:$2")} into the HUD.`); return; }
+  const value= act==="approve"?"approved":"rejected";
+  if(item.run){
+    try{ await api("/api/decision",{run_id:key, decision:value, note:"from CARDINAL bridge"}); }
+    catch(err){ speak(`I couldn't save that decision: ${err.message}.`); return; }
+  }
+  W.local[key]=value; W.later.delete(key);
+  lastCmd = `${value} ${item.plan.direction} ${item.plan.session}`;
+  speak(value==="approved"
+    ? `Approved, ${OPERATOR}. ${item.run?"Logged to runs.":"Marked here only, since it isn't a saved run."} Sizing and execution stay with you.`
+    : `Dismissed. RISK had already blocked it.`);
+  render();
+});
+async function refreshWaiting(){
+  if(!API.online) return;
+  try{ const j=await api("/api/runs"); W.server=j.runs||[]; renderWaiting(); }catch(e){}
+}
+
+/* ---- voice ---- */
+let typer=null, voice=null;
+function pickVoice(){
+  const vs=(window.speechSynthesis&&speechSynthesis.getVoices())||[];
+  voice = vs.find(v=>/en-GB/i.test(v.lang)&&/male|daniel|arthur|george|ryan/i.test(v.name)) || vs.find(v=>/en-GB/i.test(v.lang)) || vs.find(v=>/^en/i.test(v.lang)) || null;
+}
+if(window.speechSynthesis){ pickVoice(); speechSynthesis.onvoiceschanged=pickVoice; }
+function typeOut(text){
+  const el=$("say"); clearInterval(typer); let i=0;
+  if(RM){ el.textContent=text; return; }
+  el.innerHTML=""; const span=document.createElement("span"), caret=document.createElement("i"); caret.className="caret";
+  el.append(span, caret);
+  typer=setInterval(()=>{ i+=2; span.textContent=text.slice(0,i); if(i>=text.length){ clearInterval(typer); setTimeout(()=>caret.remove(),1600); } },18);
+}
+function speak(text, onDone){
+  typeOut(text);
+  let done=false; const finish=()=>{ if(done) return; done=true; CORE.speaking=false; if(onDone) onDone(); };
+  const fallback=()=>{ pulse(1400); setTimeout(finish, Math.min(9000, 900+text.length*45)); };
+  if(!voiceOn || !window.speechSynthesis) { fallback(); return; }
+  try{
+    speechSynthesis.cancel();
+    const u=new SpeechSynthesisUtterance(text);
+    if(voice) u.voice=voice; u.lang=voice?.lang||"en-GB"; u.pitch=.85; u.rate=1;
+    u.onstart=()=>{CORE.speaking=true;}; u.onend=u.onerror=finish;
+    u.onboundary=()=>{ CORE.amp=1; };
+    speechSynthesis.speak(u);
+    setTimeout(()=>{ if(!speechSynthesis.speaking && !speechSynthesis.pending && !done) fallback(); },500); // speech blocked before first click
+  }catch(e){ fallback(); }
+}
+function pulse(ms){ CORE.speaking=true; clearTimeout(pulse.t); pulse.t=setTimeout(()=>CORE.speaking=false, ms); }
+$("voiceBtn").addEventListener("click",()=>{
+  voiceOn=!voiceOn; $("voiceBtn").setAttribute("aria-pressed",String(voiceOn)); $("voiceBtn").textContent=`Voice: ${voiceOn?"ON":"OFF"}`;
+  if(!voiceOn && window.speechSynthesis) speechSynthesis.cancel();
+});
+
+/* ---- session helpers for briefs ---- */
+function sessionInfo(s, now=new Date()){
+  const cfg=S.cfg, [hh,mm]=cfg.orb_start[s].split(":").map(Number);
+  const start=Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate(),hh,mm), end=start+cfg.orb_minutes*60000, t=now.getTime();
+  return {start,end, phase: t<start?"pre":t<end?"forming":"set", until:t<start?start-t:t<end?end-t:t-end};
+}
+const say_hm = ms => { const m=Math.round(ms/60000), h=Math.floor(m/60); return h?`${h} hour${h>1?"s":""}${m%60?" "+(m%60)+" minutes":""}`:`${m} minute${m===1?"":"s"}`; };
+const SNAME = s => s==="NewYork"?"New York":"London";
+function brief(s){
+  const now=new Date(), si=sessionInfo(s,now), open=marketOpen(now), parts=[];
+  parts.push(!open ? `Gold is closed for the weekend, ${OPERATOR}; the ${SNAME(s)} range is next week's business.`
+    : si.phase==="pre" ? `${SNAME(s)} opening range starts in ${say_hm(si.until)}.`
+    : si.phase==="forming" ? `${SNAME(s)} range is forming, locks in ${say_hm(si.until)}.`
+    : `${SNAME(s)} range set ${say_hm(si.until)} ago.`);
+  let bars=null; try{ bars=S.candles?normalizeCandles(S.candles):null; }catch(e){}
+  const oc=bars?computeOrb(bars,s,S.cfg):null;
+  if(oc) parts.push(`Range ${f2(oc.low)} to ${f2(oc.high)}${S.sample?", from example data":""}.`);
+  const p=S.plan;
+  if(p && p.session===s){
+    const v=CORE.verdict.replace("_"," ");
+    parts.push(p.direction==="flat" ? `ANALYST says stand aside; RISK ${v}.`
+      : `Plan ${p.direction} at ${f2(p.entry)}, stop ${f2(p.stop)}, first target ${f2(p.targets?.[0])}, ${isNum(CORE.rr)?CORE.rr.toFixed(1):"?"}R. RISK says ${v}.`);
+    if(p.volume_profile_confluence==="not_available"&&p.whale_or_gamex_confluence==="not_available") parts.push("No volume or whale data, so it's price and range only.");
+  } else parts.push(`No ${SNAME(s)} plan yet. Say "run analyst" once the range sets.`);
+  const left=Math.max(0,Math.abs(S.cfg.daily_loss_limit)+Math.min(0,S.pnl));
+  parts.push(left<=0?"Daily loss limit is hit. The desk is closed today.":`${money(left)} of loss room left.`);
+  return parts.join(" ");
+}
+function statusReport(){
+  const k=API.keys, parts=[];
+  parts.push(API.online ? `serve.py online; Gemini ${k.gemini?"ready":"missing a key"}, Grok ${k.grok?"ready":"missing a key"}, Groq ${k.groq?"ready":"missing a key"}, Jev ${k.typesafe?"ready":"not configured"}.`
+                        : "Read-only mode: serve.py isn't running, so I can't call ANALYST.");
+  let bars=null; try{ bars=S.candles?normalizeCandles(S.candles):null; }catch(e){}
+  parts.push(bars?`${bars.length} candles loaded${S.sample?", example data only":""}.`:"No candles loaded.");
+  parts.push(`RISK reads ${CORE.verdict.replace("_"," ")}${S.py?" from the Python gate":" from the browser mirror"}; ${Math.round(CORE.lossFrac*100)}% of the loss limit used.`);
+  return parts.join(" ");
+}
+function waitingReport(){
+  const items=waitingItems().filter(i=>!W.later.has(i.key));
+  const el=$("waitPanel"); el.querySelectorAll("li[data-key]").forEach(li=>li.classList.add("hl")); setTimeout(()=>el.querySelectorAll(".hl").forEach(li=>li.classList.remove("hl")),2600);
+  if(!items.length) return `Nothing waiting on you, ${OPERATOR}.`;
+  const top=items.slice(0,3).map(i=>`${i.plan.direction} ${SNAME(i.plan.session)}, RISK ${String(i.verdict).replace("_"," ")}`).join("; ");
+  return `${items.length} plan${items.length>1?"s":""} waiting. ${top}.`;
+}
+
+/* ---- command router ---- */
+function command(raw){
+  const c=raw.toLowerCase().trim(); if(!c) return;
+  lastCmd=raw.trim().slice(0,40);
+  let out;
+  if(/focus/.test(c)) return toggleFocus();
+  if(/voice\s*off|mute/.test(c)){ if(voiceOn) $("voiceBtn").click(); out="Voice off."; }
+  else if(/voice\s*on|unmute/.test(c)){ if(!voiceOn) $("voiceBtn").click(); out="Voice back on."; }
+  else if(/new york|\bny\b/.test(c)) out=brief("NewYork");
+  else if(/london/.test(c)) out=brief("London");
+  else if(/morning|evening|afternoon|brief/.test(c)){ const now=new Date(); const s=sessionInfo("London",now).phase!=="set"?"London":"NewYork"; out=brief(s); }
+  else if(/wait|pending|approv/.test(c)) out=waitingReport();
+  else if(/status|systems|health/.test(c)) out=statusReport();
+  else if(/run|analyst|plan/.test(c)){
+    const b=$("cRun");
+    if(!API.online) out="I can't run ANALYST in read-only mode. Start python3 serve.py and open 127.0.0.1:8765.";
+    else if(b.disabled) out= !(Array.isArray(S.candles)&&S.candles.length) ? "Load candles first." : "That model has no key in .env.";
+    else { out=`Running ANALYST on ${$("cSession").value==="NewYork"?"New York":"London"} with ${$("cProvider").value}. RISK will check it.`; b.click(); }
+  }
+  else if(/gate|risk|check/.test(c)){ if(API.online&&S.plan){ pyGate(false); out="Re-checking with the Python gate."; } else out=`RISK reads ${CORE.verdict.replace("_"," ")} from the browser mirror.`; }
+  else if(/help|what can/.test(c)) out="Try London brief, NY brief, status, what's waiting, run analyst, check gate, or focus mode.";
+  else out=`I only handle desk commands, ${OPERATOR}. Try London brief, status, or what's waiting.`;
+  speak(out); renderSystems();
+}
+function toggleFocus(){
+  focus=!focus; $("wrap").classList.toggle("focus",focus); $("focusChip").setAttribute("aria-pressed",String(focus));
+  CORE.speed=focus?.25:1;
+  speak(focus?"Focus mode on. Panels dimmed, motion calmed. I'll keep the noise down.":"Focus mode off. Full display restored.");
+}
+$("cmdForm").addEventListener("submit",e=>{ e.preventDefault(); const v=$("cmdIn").value; $("cmdIn").value=""; converse(v); });
+document.querySelectorAll(".qc").forEach(b=>b.addEventListener("click",()=>command(b.dataset.cmd)));
+
+/* ---- conversation with CARDINAL (serve.py -> Gemini, or Groq / Grok) ---- */
+const CHAT=[];
+function deskState(){
+  let bars=null; try{ bars=S.candles?normalizeCandles(S.candles):null; }catch(e){}
+  const now=new Date(), sess={};
+  for(const s of SESSIONS){ const si=sessionInfo(s,now), oc=bars?computeOrb(bars,s,S.cfg):null;
+    sess[s]={phase:si.phase, minutes:Math.round(si.until/60000), orb_window_utc:`${S.cfg.orb_start[s]} +${S.cfg.orb_minutes}m`, orb_from_candles:oc?{high:oc.high, low:oc.low, date:oc.date}:null}; }
+  const d=S.py || (S.plan?evaluate(S.plan,S.candles,S.pnl,S.cfg,now,S.news):null);
+  const lim=Math.abs(S.cfg.daily_loss_limit);
+  return {
+    utc_now: now.toISOString().slice(0,16)+"Z", market_open: marketOpen(now), data_is_sample: !!S.sample,
+    sessions: sess,
+    candles: bars?{count:bars.length, first:bars[0].t, last:bars[bars.length-1].t, low:Math.min(...bars.map(b=>b.l)), high:Math.max(...bars.map(b=>b.h)), last_close:bars[bars.length-1].c}:null,
+    plan: S.plan||null,
+    risk: d?{verdict:d.verdict, failed:d.reasons, source:S.py?"python gate":"browser mirror", computed_rr:d.computed_rr}:null,
+    thresholds: {min_rr:S.cfg.min_rr, min_confidence:S.cfg.min_confidence, daily_loss_limit:lim},
+    pnl_today: S.pnl, loss_room_left: Math.max(0, lim+Math.min(0,S.pnl)),
+    macro: S.macro, news_utc: S.news, jev: S.jev||null,
+    waiting_on_you: waitingItems().filter(i=>!W.later.has(i.key)).map(i=>({direction:i.plan?.direction, session:i.plan?.session, risk:i.verdict})),
+    keys: API.keys, focus_mode: focus,
+  };
+}
+function doAction(a){
+  if(a==="run_analyst"){ const b=$("cRun"); if(!b.disabled) b.click(); }
+  else if(a==="check_gate"){ if(API.online&&S.plan) pyGate(false); }
+  else if(a==="focus"){ focus=!focus; $("wrap").classList.toggle("focus",focus); $("focusChip").setAttribute("aria-pressed",String(focus)); CORE.speed=focus?.25:1; }
+  else if(a==="waiting"){ const el=$("waitPanel"); el.querySelectorAll("li[data-key]").forEach(li=>li.classList.add("hl")); setTimeout(()=>el.querySelectorAll(".hl").forEach(li=>li.classList.remove("hl")),2600); }
+}
+async function converse(raw, onDone){
+  const q=String(raw||"").trim(); if(!q){ onDone&&onDone(); return; }
+  if(!(API.online && API.chat)){ command(q); onDone&&setTimeout(onDone,4000); return; }   // no model: local commands only
+  lastCmd=q.slice(0,40); typeOut("…"); CORE.speaking=true; renderSystems();
+  try{
+    const r=await api("/api/ask",{question:q, state:deskState(), history:CHAT, name:OPERATOR});
+    CHAT.push({role:"user",text:q},{role:"assistant",text:r.reply}); while(CHAT.length>8) CHAT.shift();
+    log(`CARDINAL (${r.provider}): ${r.reply.slice(0,90)}${r.action!=="none"?" → "+r.action:""}`, "ok");
+    speak(r.reply, onDone); if(r.action && r.action!=="none") doAction(r.action);
+  }catch(e){ speak(`I couldn't reach the model: ${e.message}`, onDone); }
+}
+// mic -> Talk mode: listen, CARDINAL thinks (Gemini via serve.py) and answers out loud, then listens again.
+// Uses the browser's speech recognition (Chrome/Edge on 127.0.0.1); keys never reach the browser.
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition; let rec=null, talk=false, misses=0;
+function setTalk(on){ talk=on; $("micBtn").setAttribute("aria-pressed",String(on)); $("micBtn").textContent=on?"Talk: ON":"Talk";
+  if(!on && rec){ try{rec.abort();}catch(e){} rec=null; } }
+function listen(){
+  if(!talk) return;
+  try{
+    rec=new SR(); rec.lang="en-GB"; rec.interimResults=false; rec.maxAlternatives=1;
+    let heard=false;
+    rec.onresult=e=>{ heard=true; misses=0; const t=e.results[0][0].transcript; $("cmdIn").value=t; setTimeout(()=>{$("cmdIn").value="";},1500); converse(t, ()=>setTimeout(listen,250)); };
+    rec.onerror=e=>{ if(e.error==="not-allowed"||e.error==="service-not-allowed"){ setTalk(false); speak("Microphone access is blocked here. Type instead."); } };
+    rec.onend=()=>{ rec=null; if(talk && !heard){ if(++misses>=3){ setTalk(false); speak("I'll stop listening. Press Talk when you need me."); misses=0; } else listen(); } };
+    typeOut("Listening…"); rec.start();
+  }catch(e){ setTalk(false); speak("Microphone isn't available here. Type instead."); }
+}
+$("micBtn").addEventListener("click",()=>{
+  if(!SR){ speak("This browser has no speech recognition. Use Chrome or Edge, or type instead."); return; }
+  if(talk){ setTalk(false); typeOut("Talk mode off."); return; }
+  setTalk(true); misses=0;
+  if(!(API.online&&API.chat)) speak("Talk mode on, commands only. Start serve.py with a Gemini key for full conversation.", listen);
+  else speak(`Listening, ${OPERATOR}.`, listen);
+});
+
+/* ---- energy core (canvas) ---- */
+const cv=$("coreCanvas"), cx=cv.getContext("2d");
+let CW=0, DPR=1;
+function sizeCore(){ DPR=Math.min(2,window.devicePixelRatio||1); const r=cv.getBoundingClientRect(); CW=Math.max(1,r.width); cv.width=Math.round(CW*DPR); cv.height=Math.round(CW*DPR); }
+new ResizeObserver(sizeCore).observe(cv);
+function arc(r, a0, a1, color, w, glow){
+  r=clamp0(r); if(r<=0 || a1<=a0) return;
+  cx.beginPath(); cx.arc(0,0,r,a0,a1); cx.strokeStyle=color; cx.lineWidth=w;
+  cx.shadowBlur=glow||0; cx.shadowColor=color; cx.stroke(); cx.shadowBlur=0;
+}
+const TOP=-Math.PI/2, TAU=Math.PI*2;
+const hourAng = h => TOP + h/24*TAU;
+function drawCore(ts){
+  const W_=CW; if(!W_) return;
+  const t=ts/1000, sp=CORE.speed, R=W_/2*0.97;
+  const boot=easeOut((ts-CORE.boot0)/2600), b2=easeOut((ts-CORE.boot0-500)/2200);
+  CORE.amp=Math.max(0, CORE.amp*0.92 + (CORE.speaking?0.08*Math.random():0) - 0.004);
+  if(CORE.speaking && Math.random()<.12) CORE.amp=Math.min(1, CORE.amp+.5);
+  cx.setTransform(DPR,0,0,DPR,0,0); cx.clearRect(0,0,W_,W_); cx.save(); cx.translate(W_/2,W_/2);
+  const cyan="rgba(63,227,255,", ice="rgba(214,243,255,";
+  // 24h session dial
+  const rd=R*0.93;
+  arc(rd, TOP, TOP+TAU*boot, cyan+".22)", 1);
+  for(let i=0;i<96;i++){ if(i/96>boot) break;
+    const a=TOP+i/96*TAU, major=i%12===0, hr=i%4===0, l=major?10:hr?6:3;
+    cx.strokeStyle=major?ice+".85)":cyan+(hr?".55)":".25)"); cx.lineWidth=major?1.6:1;
+    cx.beginPath(); cx.moveTo(Math.cos(a)*(rd-l),Math.sin(a)*(rd-l)); cx.lineTo(Math.cos(a)*rd,Math.sin(a)*rd); cx.stroke();
+    if(major && W_>260){ cx.fillStyle=ice+".7)"; cx.font=`${Math.max(9,W_*0.021)}px "JetBrains Mono", monospace`; cx.textAlign="center"; cx.textBaseline="middle";
+      const lr=rd-l-W_*0.03; cx.fillText(String(i/4).padStart(2,"0"), Math.cos(a)*lr, Math.sin(a)*lr); }
+  }
+  const nyStart=S.cfg.orb_start.NewYork.split(":").reduce((x,y,i)=>x+(i?+y/60:+y),0);
+  const bands=[["ASIA",0,7,cyan+".25)"],["LDN",7,16,cyan+".55)"],["NY",nyStart,21,ice+".45)"]];
+  bands.forEach(([n,a,b,c],i)=>{ const rr=rd+W_*0.012+i*0; const a0=hourAng(a), a1=hourAng(a)+(hourAng(b)-hourAng(a))*boot; arc(rd+5+(i===2?5:0), a0, a1, c, 3); });
+  for(const s of ["London","NewYork"]){ const [hh,mm]=S.cfg.orb_start[s].split(":").map(Number), h=hh+mm/60;
+    arc(rd+5+(s==="NewYork"?5:0), hourAng(h), hourAng(h+S.cfg.orb_minutes/60*boot), "#ffd27a", 6, 12); }
+  // now needle
+  const now=new Date(), hn=now.getUTCHours()+now.getUTCMinutes()/60+now.getUTCSeconds()/3600, an=hourAng(hn);
+  if(boot>.98){ cx.strokeStyle=cyan+"1)"; cx.lineWidth=2; cx.shadowBlur=12; cx.shadowColor="#3fe3ff";
+    cx.beginPath(); cx.moveTo(Math.cos(an)*(rd-R*0.13),Math.sin(an)*(rd-R*0.13)); cx.lineTo(Math.cos(an)*(rd+14),Math.sin(an)*(rd+14)); cx.stroke();
+    cx.beginPath(); cx.arc(Math.cos(an)*(rd+14),Math.sin(an)*(rd+14),clamp0(3.5),0,TAU); cx.fillStyle="#e9fbff"; cx.fill(); cx.shadowBlur=0; }
+  // ring 1: thick segmented, slow
+  const r1=R*0.76*boot; cx.save(); cx.rotate(t*0.12*sp);
+  for(let i=0;i<6;i++){ const a=i/6*TAU; arc(r1, a, a+TAU/6*0.72, cyan+".5)", Math.max(1,W_*0.009), 8); }
+  cx.restore();
+  // ring 2: tick ring, counter-rotating
+  const r2=R*0.70*boot; cx.save(); cx.rotate(-t*0.22*sp);
+  for(let i=0;i<120;i++){ const a=i/120*TAU, l=i%10===0?8:3; cx.strokeStyle=ice+(i%10===0?".7)":".25)"); cx.lineWidth=1;
+    cx.beginPath(); cx.moveTo(Math.cos(a)*clamp0(r2-l),Math.sin(a)*clamp0(r2-l)); cx.lineTo(Math.cos(a)*r2,Math.sin(a)*r2); cx.stroke(); }
+  cx.restore();
+  // data arcs: confidence, R:R, loss used (270° each, gap at bottom)
+  const A0=Math.PI*0.75, SPAN=Math.PI*1.5;
+  const gauges=[
+    ["CONF", R*0.635, CORE.conf, 1, CORE.minConf],
+    ["R:R",  R*0.56, CORE.rr, 4, CORE.minRR],
+    ["LOSS", R*0.485, CORE.lossFrac, 1, null],
+  ];
+  gauges.forEach(([lab,r,val,max,th],gi)=>{
+    const rr=r*b2; arc(rr, A0, A0+SPAN*b2, cyan+".12)", Math.max(2,W_*0.012));
+    if(isNum(val)){ const f=Math.max(0,Math.min(1,val/max))*b2;
+      const good = lab==="LOSS" ? val<.7 : val>=th;
+      const col = lab==="LOSS" ? (val>=1?"#ff5a5f":val>=.7?"#f3a536":"#3fe3ff") : good?"#46d38a":"#f3a536";
+      arc(rr, A0, A0+SPAN*f, col, Math.max(2,W_*0.012), 10);
+      if(th!=null){ const ta=A0+SPAN*Math.min(1,th/max); cx.strokeStyle=ice+".9)"; cx.lineWidth=1.5;
+        cx.beginPath(); cx.moveTo(Math.cos(ta)*clamp0(rr-7),Math.sin(ta)*clamp0(rr-7)); cx.lineTo(Math.cos(ta)*(rr+7),Math.sin(ta)*(rr+7)); cx.stroke(); } }
+    if(W_>200 && b2>.9){ cx.fillStyle=cyan+".85)"; cx.font=`600 ${Math.max(8,W_*0.019)}px "Chakra Petch", sans-serif`; cx.textAlign="center"; cx.textBaseline="middle";
+      const txt = lab + "  " + (!isNum(val)?"—": lab==="CONF"?Math.round(val*100)+"%": lab==="R:R"?val.toFixed(2): Math.round(val*100)+"% used");
+      cx.fillText(txt, 0, rr); }
+  });
+  // ring 3: dashed, fast, colored by verdict
+  const vcol = CORE.verdict==="APPROVE"?"70,211,138":CORE.verdict==="REJECT"?"255,90,95":CORE.verdict==="NO_TRADE"?"243,165,54":"63,227,255";
+  const r3=R*0.44*b2; cx.save(); cx.rotate(t*0.5*sp); cx.setLineDash([W_*0.02, W_*0.012]);
+  arc(r3, 0, TAU, `rgba(${vcol},.75)`, 2, 10); cx.setLineDash([]); cx.restore();
+  // energy core
+  const breathe = 1 + (RM?0:0.035*Math.sin(t*1.6*sp)) + CORE.amp*0.12;
+  const rc=clamp0(R*0.36*b2*breathe);
+  if(rc>0){ const g=cx.createRadialGradient(0,0,0,0,0,rc);
+    g.addColorStop(0,"rgba(220,250,255,.55)"); g.addColorStop(.25,"rgba(63,227,255,.32)"); g.addColorStop(.7,"rgba(20,120,170,.10)"); g.addColorStop(1,"rgba(63,227,255,0)");
+    cx.fillStyle=g; cx.beginPath(); cx.arc(0,0,rc,0,TAU); cx.fill(); }
+  // voice waveform ring
+  if(CORE.amp>0.02 || CORE.speaking){ const rw=R*0.83, n=90;
+    cx.strokeStyle=cyan+".85)"; cx.lineWidth=2; cx.shadowBlur=10; cx.shadowColor="#3fe3ff";
+    for(let i=0;i<n;i++){ const a=i/n*TAU, h=clamp0(CORE.amp*R*0.07*(0.35+0.65*Math.abs(Math.sin(i*1.7+t*9))));
+      cx.beginPath(); cx.moveTo(Math.cos(a)*rw,Math.sin(a)*rw); cx.lineTo(Math.cos(a)*(rw+h),Math.sin(a)*(rw+h)); cx.stroke(); }
+    cx.shadowBlur=0; }
+  cx.restore();
+}
+
+/* ---- background: hex grid + drifting particles ---- */
+const bg=$("bgfx"), bx=bg.getContext("2d"); let parts=[], hexImg=null;
+function sizeBg(){
+  const d=Math.min(2,window.devicePixelRatio||1); bg.width=innerWidth*d; bg.height=innerHeight*d; bx.setTransform(d,0,0,d,0,0);
+  hexImg=document.createElement("canvas"); hexImg.width=bg.width; hexImg.height=bg.height; const h=hexImg.getContext("2d"); h.setTransform(d,0,0,d,0,0);
+  const s=22, w=Math.sqrt(3)*s; h.strokeStyle="rgba(63,227,255,.05)"; h.lineWidth=1;
+  for(let y=0, row=0; y<innerHeight+s*2; y+=s*1.5, row++) for(let x=(row%2?w/2:0)-w; x<innerWidth+w; x+=w){
+    h.beginPath(); for(let k=0;k<6;k++){ const a=Math.PI/180*(60*k-30); h.lineTo(x+s*Math.cos(a), y+s*Math.sin(a)); } h.closePath(); h.stroke(); }
+  parts=Array.from({length:Math.round(innerWidth*innerHeight/26000)},()=>({x:Math.random()*innerWidth, y:Math.random()*innerHeight, v:.08+Math.random()*.25, r:.6+Math.random()*1.4, a:.15+Math.random()*.45}));
+}
+addEventListener("resize", sizeBg); sizeBg();
+function drawBg(){
+  bx.clearRect(0,0,innerWidth,innerHeight);
+  if(hexImg) bx.drawImage(hexImg,0,0,innerWidth,innerHeight);
+  for(const p of parts){ if(!RM){ p.y-=p.v*CORE.speed; p.x+=Math.sin(p.y/60)*.08; if(p.y<-4){p.y=innerHeight+4; p.x=Math.random()*innerWidth;} }
+    bx.beginPath(); bx.arc(p.x,p.y,clamp0(p.r),0,TAU); bx.fillStyle=`rgba(63,227,255,${p.a})`; bx.fill(); }
+}
+function frame(ts){ drawCore(ts); drawBg(); requestAnimationFrame(frame); }
+requestAnimationFrame(frame);
+
+/* ---- boot sequence ---- */
+(function boot(){
+  if(!RM){ const sl=document.createElement("div"); sl.className="scanline"; document.body.appendChild(sl); setTimeout(()=>sl.remove(),1800); }
+  typeOut("Initialising…");
+  setTimeout(()=>{ $("wrap").classList.remove("booting"); renderSystems();
+    const h=new Date().getHours(), part=h<12?"morning":h<18?"afternoon":"evening";
+    speak(`Initialising… Systems online. Good ${part}, ${OPERATOR}.`); }, RM?0:2600);
+})();
+
+syncInputs(); render(); renderConsole(); connect();
 setInterval(tick,1000);
-setInterval(render,30000); // re-run time-dependent gate checks (news blackout)
+setInterval(()=>{ if(S.py && S.news.length) pyGate(); else render(); },30000); // re-run time-dependent gate checks (news blackout)
 })();
 </script>
 </body>
