@@ -10,6 +10,7 @@ from unittest import mock
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 import analyst  # noqa: E402
+import cardinal_chat  # noqa: E402
 import jev  # noqa: E402
 import serve  # noqa: E402
 
@@ -126,6 +127,32 @@ class ServeTest(unittest.TestCase):
         self.assertTrue(url.startswith("https://api.groq.com/"))
         self.assertEqual(headers["Authorization"], "Bearer gsk-test")
         self.assertEqual(body["model"], "openai/gpt-oss-120b")
+
+    def test_ask_sends_state_and_sanitizes_action(self):
+        fake = mock.Mock(return_value='{"reply": "Long London, RISK approves.", "action": "place_order"}')
+        with mock.patch.object(cardinal_chat, "chat", fake):
+            code, raw = self.req("POST", "/api/ask", {"question": "what's the plan?", "state": {"plan": PLAN},
+                                                      "history": [{"role": "assistant", "text": "hi"}]})
+        self.assertEqual(code, 200, raw)
+        r = json.loads(raw)
+        self.assertEqual(r["reply"], "Long London, RISK approves.")
+        self.assertEqual(r["action"], "none")          # anything outside the HUD's own actions is dropped
+        self.assertEqual(r["provider"], "gemini")
+        provider, system, turns = fake.call_args[0]
+        self.assertIn('"orb_high": 2660.0', system)
+        self.assertEqual(turns, [{"role": "user", "text": "what's the plan?"}])  # leading assistant turn dropped
+        self.assertNotIn(FAKE_KEY, system)
+
+    def test_ask_without_any_chat_key(self):
+        with mock.patch.dict(os.environ, {}, clear=True):
+            code, raw = self.req("POST", "/api/ask", {"question": "status?"})
+        self.assertEqual(code, 502)
+        self.assertIn("GEMINI_API_KEY", json.loads(raw)["error"])
+
+    def test_chat_provider_falls_back_to_groq(self):
+        with mock.patch.dict(os.environ, {"GROQ_API_KEY": "gsk-x"}, clear=True):
+            self.assertEqual(cardinal_chat.pick_provider(), "groq")
+            self.assertEqual(json.loads(self.req("GET", "/api/status")[1])["chat_provider"], "groq")
 
     def test_decision_rejects_path_tricks(self):
         code, _ = self.req("POST", "/api/decision", {"run_id": "../../etc/passwd", "decision": "approved"})

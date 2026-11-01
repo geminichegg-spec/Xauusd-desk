@@ -6,6 +6,7 @@ Then open http://127.0.0.1:8765 in your browser. The HUD can then:
   * show which API keys are set (yes/no only, never the key),
   * run ANALYST (Gemini, Grok or Groq) on the candles you loaded, with an optional Jev review,
   * re-check any plan with the real Python RISK gate,
+  * talk to CARDINAL (voice or text) about the desk state, answered by Gemini (or Groq / Grok),
   * list runs still waiting on you, and record your approve / reject decision in runs/ (gitignored).
 
 Keys stay in .env or your environment, are read only by this process, and never reach
@@ -25,6 +26,7 @@ from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import analyst
+import cardinal_chat
 import jev
 import keys
 from risk_gate import RiskConfig, evaluate
@@ -140,6 +142,7 @@ class Handler(BaseHTTPRequestHandler):
                 "keys": keys.status(),
                 "models": {p: keys.get_model(p) for p in keys.PROVIDERS},
                 "default_provider": os.environ.get("DESK_PROVIDER", "gemini"),
+                "chat_provider": _chat_provider(),
                 "config": self.cfg.__dict__,
             })
         if path == "/api/runs":
@@ -171,6 +174,10 @@ class Handler(BaseHTTPRequestHandler):
                                              "context": b.get("context"), "pnl": _num(b.get("pnl")),
                                              "result": result, "decision": None})
                 return self._send(200, result)
+            if path == "/api/ask":
+                return self._send(200, cardinal_chat.ask(str(b.get("question") or ""), b.get("state") or {},
+                                                         b.get("history"), b.get("provider"),
+                                                         str(b.get("name") or "Mazhar")))
             if path == "/api/jev":
                 return self._send(200, {"jev_review": jev.review(b.get("plan"), b.get("candles") or [],
                                                                  str(b.get("context") or ""))})
@@ -192,6 +199,13 @@ class Handler(BaseHTTPRequestHandler):
             return self._send(502 if isinstance(e, (RuntimeError, urllib.error.URLError)) else 400,
                               {"error": str(e)})
         return self._send(404, {"error": "not found"})
+
+
+def _chat_provider():
+    try:
+        return cardinal_chat.pick_provider()
+    except RuntimeError:
+        return None
 
 
 def make_server(port: int = 8765, cfg: RiskConfig | None = None) -> ThreadingHTTPServer:

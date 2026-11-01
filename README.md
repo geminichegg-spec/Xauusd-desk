@@ -18,6 +18,7 @@ ANALYST can be run by **Google Gemini**, **Grok (xAI)** or **Groq** (groq.com, o
 | `.env.example` | Template for your keys (copy to `.env`) |
 | `.github/workflows/desk.yml` | Runs tests on every push; manual ANALYST run using repo secrets |
 | `hud.html` | Heads-up display: open in a browser, load or drop a plan, candles, config or bundle JSON. Mirrors the RISK gate; never fetches prices. Served by `serve.py`, it also runs the desk. |
+| `cardinal_chat.py` | CARDINAL conversation: question + desk state → Gemini (or Groq/Grok) → short spoken reply and an optional HUD action |
 | `serve.py` | Local control server for the HUD on `http://127.0.0.1:8765`: runs ANALYST + Jev, re-checks plans with the Python gate, logs your approve/reject to `runs/` |
 
 ## Add your API keys
@@ -52,7 +53,7 @@ ANALYST can be run by **Google Gemini**, **Grok (xAI)** or **Groq** (groq.com, o
 python3 serve.py            # then open http://127.0.0.1:8765
 ```
 
-The top of the page is the **CARDINAL bridge**: an energy core showing the RISK verdict, a 24-hour dial with the Asia/London/NY sessions and both ORB windows, and arcs for confidence, R:R and daily loss. SYSTEMS on the left shows each desk agent's state (amber means it needs you), and WAITING ON YOU on the right lists saved plans to **Approve** or put off till **Later**. Type or say commands in the bar (London brief, NY brief, status, what's waiting, run analyst, focus mode); CARDINAL answers in text and, with Voice ON, out loud in a British voice. Briefs and status are worked out in the page from your loaded data; only Run ANALYST calls a model. The operator name defaults to Mazhar; change it with `localStorage.setItem("cardinal.operator", "Name")` in the browser console.
+The top of the page is the **CARDINAL bridge**: an energy core showing the RISK verdict, a 24-hour dial with the Asia/London/NY sessions and both ORB windows, and arcs for confidence, R:R and daily loss. SYSTEMS on the left shows each desk agent's state (amber means it needs you), and WAITING ON YOU on the right lists saved plans to **Approve** or put off till **Later**. Type or say commands in the bar (London brief, NY brief, status, what's waiting, run analyst, focus mode); CARDINAL answers in text and, with Voice ON, out loud in a British voice. Briefs and status are worked out in the page from your loaded data; only Run ANALYST calls a model. **Talk to CARDINAL:** press **Talk** for hands-free voice (Chrome or Edge): it listens, sends your question and the current desk state to Gemini through `serve.py`, says the answer out loud, then listens again. Typed questions in the bar work the same way. If there is no Gemini key it uses Groq, then Grok (set `CHAT_PROVIDER` in `.env` to choose). CARDINAL only uses the desk state the HUD sends, never invents prices, and can only trigger the HUD's own actions (briefs, run ANALYST, re-check the gate, focus mode); it cannot approve or place anything. Without `serve.py` or a key, the bar and Talk fall back to the built-in commands. The operator name defaults to Mazhar; change it with `localStorage.setItem("cardinal.operator", "Name")` in the browser console.
 
 1. The console below the bridge shows `serve.py online` and which keys are set (yes/no only).
 2. Load your session candles with **Load JSON** (or drop the file on the page). The sample candles are synthetic.

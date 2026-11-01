@@ -407,8 +407,8 @@ body::before{display:none}
     <form class="cmd" id="cmdForm" autocomplete="off">
       <div class="cmd-row">
         <label for="cmdIn" class="lbl" hidden>Ask CARDINAL</label>
-        <input id="cmdIn" type="text" placeholder="Ask CARDINAL…  try “London brief” or “what's waiting”">
-        <button class="btn mic" id="micBtn" type="button" aria-pressed="false" title="Speak a command">Mic</button>
+        <input id="cmdIn" type="text" placeholder="Ask CARDINAL anything about the desk…  or press Talk">
+        <button class="btn mic" id="micBtn" type="button" aria-pressed="false" title="Talk to CARDINAL hands-free">Talk</button>
         <button class="btn primary" type="submit">Send</button>
       </div>
       <div class="chips">
@@ -1061,6 +1061,7 @@ async function connect(){
     API.online=true; API.keys=j.keys||{}; API.models=j.models||{};
     if(j.config){ SERVER_CFG=j.config; S.cfg=baseCfg(); }
     if(j.default_provider) $("cProvider").value=j.default_provider;
+    API.chat=j.chat_provider||null;
     log("Connected to serve.py. Keys: "+Object.entries(API.keys).map(([n,v])=>`${n} ${v?"set":"missing"}`).join(", "));
     renderConsole(); changed(); refreshWaiting();
   }catch(e){ API.online=false; renderConsole(); log("serve.py not reachable: "+e.message,"err"); }
@@ -1130,7 +1131,7 @@ function sysRow(name, sub, state, act, example){
 function renderSystems(){
   const on=API.online, k=API.keys, prov=$("cProvider").value, rows=[];
   let warn=0; const st=c=>{ if(c) warn++; return c; };
-  rows.push(sysRow("CARDINAL","chief of staff","", `Last command: ${lastCmd}`));
+  rows.push(sysRow("CARDINAL", API.chat?`voice · ${API.chat}`:"local commands", API.online&&!API.chat?"amber":"", `${API.online&&!API.chat?"No chat key; local commands only. ":""}Last: ${lastCmd}`));
   const aKey=k[prov];
   rows.push(sysRow("ANALYST", `${prov} · ${API.models[prov]||"—"}`, st(!on||!aKey?"amber":""),
     !on ? "Read-only: serve.py not running" : !aKey ? `${({grok:"XAI",groq:"GROQ",gemini:"GEMINI"})[prov]}_API_KEY missing in .env` :
@@ -1218,18 +1219,20 @@ function typeOut(text){
   el.append(span, caret);
   typer=setInterval(()=>{ i+=2; span.textContent=text.slice(0,i); if(i>=text.length){ clearInterval(typer); setTimeout(()=>caret.remove(),1600); } },18);
 }
-function speak(text){
+function speak(text, onDone){
   typeOut(text);
-  if(!voiceOn || !window.speechSynthesis) { pulse(1400); return; }
+  let done=false; const finish=()=>{ if(done) return; done=true; CORE.speaking=false; if(onDone) onDone(); };
+  const fallback=()=>{ pulse(1400); setTimeout(finish, Math.min(9000, 900+text.length*45)); };
+  if(!voiceOn || !window.speechSynthesis) { fallback(); return; }
   try{
     speechSynthesis.cancel();
     const u=new SpeechSynthesisUtterance(text);
     if(voice) u.voice=voice; u.lang=voice?.lang||"en-GB"; u.pitch=.85; u.rate=1;
-    u.onstart=()=>{CORE.speaking=true;}; u.onend=u.onerror=()=>{CORE.speaking=false;};
+    u.onstart=()=>{CORE.speaking=true;}; u.onend=u.onerror=finish;
     u.onboundary=()=>{ CORE.amp=1; };
     speechSynthesis.speak(u);
-    setTimeout(()=>{ if(!speechSynthesis.speaking) pulse(1400); },400); // blocked before first click: still pulse
-  }catch(e){ pulse(1400); }
+    setTimeout(()=>{ if(!speechSynthesis.speaking && !speechSynthesis.pending && !done) fallback(); },500); // speech blocked before first click
+  }catch(e){ fallback(); }
 }
 function pulse(ms){ CORE.speaking=true; clearTimeout(pulse.t); pulse.t=setTimeout(()=>CORE.speaking=false, ms); }
 $("voiceBtn").addEventListener("click",()=>{
@@ -1311,21 +1314,70 @@ function toggleFocus(){
   CORE.speed=focus?.25:1;
   speak(focus?"Focus mode on. Panels dimmed, motion calmed. I'll keep the noise down.":"Focus mode off. Full display restored.");
 }
-$("cmdForm").addEventListener("submit",e=>{ e.preventDefault(); const v=$("cmdIn").value; $("cmdIn").value=""; command(v); });
+$("cmdForm").addEventListener("submit",e=>{ e.preventDefault(); const v=$("cmdIn").value; $("cmdIn").value=""; converse(v); });
 document.querySelectorAll(".qc").forEach(b=>b.addEventListener("click",()=>command(b.dataset.cmd)));
-// mic: browser speech recognition where the browser allows it (works on 127.0.0.1 in Chrome)
-const SR=window.SpeechRecognition||window.webkitSpeechRecognition; let rec=null;
-$("micBtn").addEventListener("click",()=>{
-  if(!SR){ speak("This browser has no speech recognition. Type the command instead."); return; }
-  if(rec){ rec.stop(); return; }
+
+/* ---- conversation with CARDINAL (serve.py -> Gemini, or Groq / Grok) ---- */
+const CHAT=[];
+function deskState(){
+  let bars=null; try{ bars=S.candles?normalizeCandles(S.candles):null; }catch(e){}
+  const now=new Date(), sess={};
+  for(const s of SESSIONS){ const si=sessionInfo(s,now), oc=bars?computeOrb(bars,s,S.cfg):null;
+    sess[s]={phase:si.phase, minutes:Math.round(si.until/60000), orb_window_utc:`${S.cfg.orb_start[s]} +${S.cfg.orb_minutes}m`, orb_from_candles:oc?{high:oc.high, low:oc.low, date:oc.date}:null}; }
+  const d=S.py || (S.plan?evaluate(S.plan,S.candles,S.pnl,S.cfg,now,S.news):null);
+  const lim=Math.abs(S.cfg.daily_loss_limit);
+  return {
+    utc_now: now.toISOString().slice(0,16)+"Z", market_open: marketOpen(now), data_is_sample: !!S.sample,
+    sessions: sess,
+    candles: bars?{count:bars.length, first:bars[0].t, last:bars[bars.length-1].t, low:Math.min(...bars.map(b=>b.l)), high:Math.max(...bars.map(b=>b.h)), last_close:bars[bars.length-1].c}:null,
+    plan: S.plan||null,
+    risk: d?{verdict:d.verdict, failed:d.reasons, source:S.py?"python gate":"browser mirror", computed_rr:d.computed_rr}:null,
+    thresholds: {min_rr:S.cfg.min_rr, min_confidence:S.cfg.min_confidence, daily_loss_limit:lim},
+    pnl_today: S.pnl, loss_room_left: Math.max(0, lim+Math.min(0,S.pnl)),
+    macro: S.macro, news_utc: S.news, jev: S.jev||null,
+    waiting_on_you: waitingItems().filter(i=>!W.later.has(i.key)).map(i=>({direction:i.plan?.direction, session:i.plan?.session, risk:i.verdict})),
+    keys: API.keys, focus_mode: focus,
+  };
+}
+function doAction(a){
+  if(a==="run_analyst"){ const b=$("cRun"); if(!b.disabled) b.click(); }
+  else if(a==="check_gate"){ if(API.online&&S.plan) pyGate(false); }
+  else if(a==="focus"){ focus=!focus; $("wrap").classList.toggle("focus",focus); $("focusChip").setAttribute("aria-pressed",String(focus)); CORE.speed=focus?.25:1; }
+  else if(a==="waiting"){ const el=$("waitPanel"); el.querySelectorAll("li[data-key]").forEach(li=>li.classList.add("hl")); setTimeout(()=>el.querySelectorAll(".hl").forEach(li=>li.classList.remove("hl")),2600); }
+}
+async function converse(raw, onDone){
+  const q=String(raw||"").trim(); if(!q){ onDone&&onDone(); return; }
+  if(!(API.online && API.chat)){ command(q); onDone&&setTimeout(onDone,4000); return; }   // no model: local commands only
+  lastCmd=q.slice(0,40); typeOut("…"); CORE.speaking=true; renderSystems();
+  try{
+    const r=await api("/api/ask",{question:q, state:deskState(), history:CHAT, name:OPERATOR});
+    CHAT.push({role:"user",text:q},{role:"assistant",text:r.reply}); while(CHAT.length>8) CHAT.shift();
+    log(`CARDINAL (${r.provider}): ${r.reply.slice(0,90)}${r.action!=="none"?" → "+r.action:""}`, "ok");
+    speak(r.reply, onDone); if(r.action && r.action!=="none") doAction(r.action);
+  }catch(e){ speak(`I couldn't reach the model: ${e.message}`, onDone); }
+}
+// mic -> Talk mode: listen, CARDINAL thinks (Gemini via serve.py) and answers out loud, then listens again.
+// Uses the browser's speech recognition (Chrome/Edge on 127.0.0.1); keys never reach the browser.
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition; let rec=null, talk=false, misses=0;
+function setTalk(on){ talk=on; $("micBtn").setAttribute("aria-pressed",String(on)); $("micBtn").textContent=on?"Talk: ON":"Talk";
+  if(!on && rec){ try{rec.abort();}catch(e){} rec=null; } }
+function listen(){
+  if(!talk) return;
   try{
     rec=new SR(); rec.lang="en-GB"; rec.interimResults=false; rec.maxAlternatives=1;
-    $("micBtn").setAttribute("aria-pressed","true");
-    rec.onresult=e=>{ const t=e.results[0][0].transcript; $("cmdIn").value=t; command(t); };
-    rec.onerror=e=>{ speak(e.error==="not-allowed"?"Microphone access is blocked here. Type the command instead.":"I didn't catch that."); };
-    rec.onend=()=>{ rec=null; $("micBtn").setAttribute("aria-pressed","false"); };
-    rec.start();
-  }catch(e){ rec=null; $("micBtn").setAttribute("aria-pressed","false"); speak("Microphone isn't available here. Type instead."); }
+    let heard=false;
+    rec.onresult=e=>{ heard=true; misses=0; const t=e.results[0][0].transcript; $("cmdIn").value=t; setTimeout(()=>{$("cmdIn").value="";},1500); converse(t, ()=>setTimeout(listen,250)); };
+    rec.onerror=e=>{ if(e.error==="not-allowed"||e.error==="service-not-allowed"){ setTalk(false); speak("Microphone access is blocked here. Type instead."); } };
+    rec.onend=()=>{ rec=null; if(talk && !heard){ if(++misses>=3){ setTalk(false); speak("I'll stop listening. Press Talk when you need me."); misses=0; } else listen(); } };
+    typeOut("Listening…"); rec.start();
+  }catch(e){ setTalk(false); speak("Microphone isn't available here. Type instead."); }
+}
+$("micBtn").addEventListener("click",()=>{
+  if(!SR){ speak("This browser has no speech recognition. Use Chrome or Edge, or type instead."); return; }
+  if(talk){ setTalk(false); typeOut("Talk mode off."); return; }
+  setTalk(true); misses=0;
+  if(!(API.online&&API.chat)) speak("Talk mode on, commands only. Start serve.py with a Gemini key for full conversation.", listen);
+  else speak(`Listening, ${OPERATOR}.`, listen);
 });
 
 /* ---- energy core (canvas) ---- */
