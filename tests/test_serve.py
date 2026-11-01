@@ -64,7 +64,7 @@ class ServeTest(unittest.TestCase):
         self.assertEqual(code, 200)
         self.assertNotIn(FAKE_KEY.encode(), raw)
         j = json.loads(raw)
-        self.assertEqual(j["keys"], {"gemini": True, "grok": False, "typesafe": False})
+        self.assertEqual(j["keys"], {"gemini": True, "grok": False, "groq": False, "typesafe": False})
         self.assertEqual(j["config"]["min_rr"], 1.8)
 
     def test_foreign_host_is_refused(self):
@@ -117,6 +117,15 @@ class ServeTest(unittest.TestCase):
         code, raw = self.req("POST", "/api/run", {"candles": CANDLES, "session": "London", "provider": "grok"})
         self.assertEqual(code, 502)
         self.assertIn("XAI_API_KEY", json.loads(raw)["error"])
+
+    def test_groq_caller_uses_groq_endpoint_and_key(self):
+        with mock.patch.dict(os.environ, {"GROQ_API_KEY": "gsk-test"}), \
+                mock.patch.object(analyst, "_post", return_value={"choices": [{"message": {"content": "{}"}}]}) as post:
+            analyst.call_groq("sys", "user")
+        url, headers, body = post.call_args[0]
+        self.assertTrue(url.startswith("https://api.groq.com/"))
+        self.assertEqual(headers["Authorization"], "Bearer gsk-test")
+        self.assertEqual(body["model"], "openai/gpt-oss-120b")
 
     def test_decision_rejects_path_tricks(self):
         code, _ = self.req("POST", "/api/decision", {"run_id": "../../etc/passwd", "decision": "approved"})

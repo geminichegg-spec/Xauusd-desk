@@ -13,6 +13,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PROVIDERS = {
     "gemini": {"key": "GEMINI_API_KEY", "model": "GEMINI_MODEL", "default_model": "gemini-3.8-flash"},
     "grok": {"key": "XAI_API_KEY", "model": "GROK_MODEL", "default_model": "grok-4"},
+    # Groq (groq.com, keys start gsk_) is a different company from Grok (xAI, keys start xai-).
+    "groq": {"key": "GROQ_API_KEY", "model": "GROQ_MODEL", "default_model": "openai/gpt-oss-120b"},
     # TypeSafe AI (Jev): typed second opinion on a plan, not a plan writer. See jev.py.
     "typesafe": {"key": "TYPESAFE_API_KEY", "model": "JEV_MODEL", "default_model": "jev-latest"},
 }

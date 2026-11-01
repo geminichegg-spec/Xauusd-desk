@@ -2,7 +2,7 @@
 
 CARDINAL routes work and asks for human approval, ANALYST writes the ORB plan as JSON, and RISK (`risk_gate.py`, pure Python, standard library only) vetoes it. Nothing here places orders or sizes positions.
 
-ANALYST can be run by **Google Gemini** or **Grok (xAI)**, and **TypeSafe AI (Jev)** can give each plan a typed second opinion. Keys live only in a local `.env` file or in GitHub Actions secrets, never in the code.
+ANALYST can be run by **Google Gemini**, **Grok (xAI)** or **Groq** (groq.com, open models; keys start `gsk_`, and it is not the same as Grok), and **TypeSafe AI (Jev)** can give each plan a typed second opinion. Keys live only in a local `.env` file or in GitHub Actions secrets, never in the code.
 
 | File | What it is |
 |---|---|
@@ -12,7 +12,7 @@ ANALYST can be run by **Google Gemini** or **Grok (xAI)**, and **TypeSafe AI (Je
 | `config.example.json` | Every gate threshold, with defaults |
 | `examples/` | Synthetic plan + candles (not real prices) |
 | `tests/` | `python3 -m unittest discover -s tests` (no keys needed) |
-| `analyst.py` | Sends candles + the ANALYST prompt to Gemini or Grok, then runs the plan through RISK |
+| `analyst.py` | Sends candles + the ANALYST prompt to Gemini, Grok or Groq, then runs the plan through RISK |
 | `jev.py` | JEV REVIEW: TypeSafe AI checks the plan against the candles (bias, breakout quality, consistency, invented data). Advisory only |
 | `keys.py` | Loads `GEMINI_API_KEY` / `XAI_API_KEY` / `TYPESAFE_API_KEY` from env or `.env`; `python3 keys.py` shows which are set |
 | `.env.example` | Template for your keys (copy to `.env`) |
@@ -26,12 +26,13 @@ ANALYST can be run by **Google Gemini** or **Grok (xAI)**, and **TypeSafe AI (Je
 
 ### On your computer (`.env`)
 
-1. Get keys: Gemini at https://aistudio.google.com/app/apikey, Grok at https://console.x.ai, TypeSafe at https://console.typesafe.ai/keys
+1. Get keys: Gemini at https://aistudio.google.com/app/apikey, Grok at https://console.x.ai, Groq at https://console.groq.com/keys, TypeSafe at https://console.typesafe.ai/keys
 2. In the repo folder: `cp .env.example .env` (Windows: `copy .env.example .env`)
 3. Open `.env` and paste each key after the `=`:
    ```
    GEMINI_API_KEY=your-gemini-key
    XAI_API_KEY=your-grok-key
+   GROQ_API_KEY=your-groq-key
    TYPESAFE_API_KEY=your-typesafe-key
    ```
 4. Check: `python3 keys.py` should say `key found` for each one you added.
@@ -39,10 +40,11 @@ ANALYST can be run by **Google Gemini** or **Grok (xAI)**, and **TypeSafe AI (Je
    ```
    python3 analyst.py examples/candles_london.json --session London --provider gemini
    python3 analyst.py examples/candles_london.json --session London --provider grok
+   python3 analyst.py examples/candles_london.json --session London --provider groq
    ```
    Add `--jev` to either command to get the TypeSafe second opinion, or review a saved plan on its own:
    `python3 jev.py examples/plan_long.json examples/candles_london.json`
-   Model names can be changed in `.env` (`GEMINI_MODEL`, `GROK_MODEL`, `JEV_MODEL`).
+   Model names can be changed in `.env` (`GEMINI_MODEL`, `GROK_MODEL`, `GROQ_MODEL`, `JEV_MODEL`).
 
 ### Operate the desk from the HUD
 
@@ -54,7 +56,7 @@ The top of the page is the **CARDINAL bridge**: an energy core showing the RISK 
 
 1. The console below the bridge shows `serve.py online` and which keys are set (yes/no only).
 2. Load your session candles with **Load JSON** (or drop the file on the page). The sample candles are synthetic.
-3. Pick the session, Gemini or Grok, tick **Jev review** if you have a TypeSafe key, add any volume profile / whale / macro notes, then **Run ANALYST**.
+3. Pick the session, Gemini, Grok or Groq, tick **Jev review** if you have a TypeSafe key, add any volume profile / whale / macro notes, then **Run ANALYST**.
 4. The plan, the Python RISK verdict and Jev's opinion fill the HUD. Changing P&L or news times re-runs the Python gate.
 5. **Approve plan** or **Reject plan** writes your decision into `runs/<run_id>.json` (gitignored). Nothing places orders.
 
@@ -72,7 +74,7 @@ If a key ever leaks, revoke it in the provider's console and make a new one.
 
 ## How TypeSafe AI (Jev) fits
 
-Gemini or Grok writes the plan. Jev does not write text; it answers fixed questions with probabilities:
+Gemini, Grok or Groq writes the plan. Jev does not write text; it answers fixed questions with probabilities:
 
 | Question | Type | Use |
 |---|---|---|

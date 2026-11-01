@@ -426,13 +426,13 @@ body::before{display:none}
     <div class="ph"><h2 id="h-con"><b>00</b>Desk console</h2>
       <div class="row" style="display:flex; gap:6px; flex-wrap:wrap">
         <span id="srvChip" class="chip c-dim">server: checking</span>
-        <span id="kGem" class="chip c-na">gemini</span><span id="kGrok" class="chip c-na">grok</span><span id="kJev" class="chip c-na">jev</span>
+        <span id="kGem" class="chip c-na">gemini</span><span id="kGrok" class="chip c-na">grok</span><span id="kGroq" class="chip c-na">groq</span><span id="kJev" class="chip c-na">jev</span>
       </div></div>
     <div id="offline" class="offline" hidden>Read-only mode. To run ANALYST from here, open a terminal in the repo folder, run <code>python3 serve.py</code>, then open <code>http://127.0.0.1:8765</code>. Your keys stay in <code>.env</code> and never reach the browser.</div>
     <div class="console">
       <div class="ctl">
         <div class="field"><label class="lbl" for="cSession">Session</label><select id="cSession"><option value="London">London</option><option value="NewYork">New York</option></select></div>
-        <div class="field"><label class="lbl" for="cProvider">ANALYST model</label><select id="cProvider"><option value="gemini">Gemini</option><option value="grok">Grok (xAI)</option></select></div>
+        <div class="field"><label class="lbl" for="cProvider">ANALYST model</label><select id="cProvider"><option value="gemini">Gemini</option><option value="grok">Grok (xAI)</option><option value="groq">Groq</option></select></div>
         <div class="field"><span class="lbl">Second opinion</span><label class="check" for="cJev"><input id="cJev" type="checkbox"> Jev review (TypeSafe)</label></div>
         <div class="field wide"><label class="lbl" for="cContext">Extra data for ANALYST (volume profile, whale, macro)</label><textarea id="cContext" spellcheck="false" style="min-height:64px" placeholder="VP: VAH 2662, POC 2655, LVN 2664-2668. Leave empty if you have none; ANALYST marks it not_available."></textarea></div>
         <div class="wide row">
@@ -1044,7 +1044,7 @@ function renderConsole(){
   $("offline").hidden=on;
   chip($("srvChip"), on?"serve.py online":"server offline", on?"c-good live":"c-dim");
   const k=(id,name,label)=>chip($(id), `${label} ${API.keys[name]?"key set":"no key"}${API.models[name]?" · "+API.models[name]:""}`, API.keys[name]?"c-good":"c-na");
-  k("kGem","gemini","gemini"); k("kGrok","grok","grok"); k("kJev","typesafe","jev");
+  k("kGem","gemini","gemini"); k("kGrok","grok","grok"); k("kGroq","groq","groq"); k("kJev","typesafe","jev");
   const hasCandles=Array.isArray(S.candles)&&S.candles.length>0;
   $("cRun").disabled=!on||!hasCandles||!API.keys[$("cProvider").value];
   $("cGate").disabled=!on||!S.plan;
@@ -1133,7 +1133,7 @@ function renderSystems(){
   rows.push(sysRow("CARDINAL","chief of staff","", `Last command: ${lastCmd}`));
   const aKey=k[prov];
   rows.push(sysRow("ANALYST", `${prov} · ${API.models[prov]||"—"}`, st(!on||!aKey?"amber":""),
-    !on ? "Read-only: serve.py not running" : !aKey ? `${prov==="grok"?"XAI":"GEMINI"}_API_KEY missing in .env` :
+    !on ? "Read-only: serve.py not running" : !aKey ? `${({grok:"XAI",groq:"GROQ",gemini:"GEMINI"})[prov]}_API_KEY missing in .env` :
     S.runId ? `Wrote run ${S.runId}` : "Ready. Load candles, then Run ANALYST"));
   const mb=S.macro.bias;
   rows.push(sysRow("MACRO","bias feed", st(mb==="not_available"?"amber":""), mb==="not_available"?"No bias loaded. Set it in Desk inputs":`${mb}${S.macro.note?" · "+S.macro.note:""}`));
@@ -1267,7 +1267,7 @@ function brief(s){
 }
 function statusReport(){
   const k=API.keys, parts=[];
-  parts.push(API.online ? `serve.py online; Gemini ${k.gemini?"ready":"missing a key"}, Grok ${k.grok?"ready":"missing a key"}, Jev ${k.typesafe?"ready":"not configured"}.`
+  parts.push(API.online ? `serve.py online; Gemini ${k.gemini?"ready":"missing a key"}, Grok ${k.grok?"ready":"missing a key"}, Groq ${k.groq?"ready":"missing a key"}, Jev ${k.typesafe?"ready":"not configured"}.`
                         : "Read-only mode: serve.py isn't running, so I can't call ANALYST.");
   let bars=null; try{ bars=S.candles?normalizeCandles(S.candles):null; }catch(e){}
   parts.push(bars?`${bars.length} candles loaded${S.sample?", example data only":""}.`:"No candles loaded.");

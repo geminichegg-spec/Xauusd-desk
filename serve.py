@@ -4,7 +4,7 @@
 
 Then open http://127.0.0.1:8765 in your browser. The HUD can then:
   * show which API keys are set (yes/no only, never the key),
-  * run ANALYST (Gemini or Grok) on the candles you loaded, with an optional Jev review,
+  * run ANALYST (Gemini, Grok or Groq) on the candles you loaded, with an optional Jev review,
   * re-check any plan with the real Python RISK gate,
   * list runs still waiting on you, and record your approve / reject decision in runs/ (gitignored).
 

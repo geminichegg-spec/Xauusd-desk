@@ -1,4 +1,4 @@
-"""Ask Gemini or Grok (as ANALYST) for an ORB plan, then run it through the RISK gate.
+"""Ask Gemini, Grok or Groq (as ANALYST) for an ORB plan, then run it through the RISK gate.
 
     python3 analyst.py examples/candles_london.json --session London [--provider grok]
         [--context "VP: VAH 2662, POC 2655"] [--pnl -120] [--config config.json] [--jev]
@@ -63,7 +63,19 @@ def call_grok(system: str, user: str) -> str:
     return out["choices"][0]["message"]["content"]
 
 
-CALLERS = {"gemini": call_gemini, "grok": call_grok}
+def call_groq(system: str, user: str) -> str:
+    # Groq (groq.com) serves open models through an OpenAI-compatible API. Not the same as Grok.
+    out = _post("https://api.groq.com/openai/v1/chat/completions",
+                {"Authorization": "Bearer " + keys.get_key("groq")}, {
+        "model": keys.get_model("groq"),
+        "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
+        "response_format": {"type": "json_object"},
+        "temperature": 0.2,
+    })
+    return out["choices"][0]["message"]["content"]
+
+
+CALLERS = {"gemini": call_gemini, "grok": call_grok, "groq": call_groq}
 
 
 def parse_plan(text: str) -> dict:
@@ -99,7 +111,7 @@ def run_desk(candles: list, session: str, provider: str, context: str = "",
 
 def main(argv=None) -> int:
     keys.load_dotenv()
-    ap = argparse.ArgumentParser(description="ANALYST (Gemini/Grok) + RISK gate")
+    ap = argparse.ArgumentParser(description="ANALYST (Gemini/Grok/Groq) + RISK gate")
     ap.add_argument("candles", help="candles JSON file (list of {t,o,h,l,c}, UTC)")
     ap.add_argument("--session", choices=["London", "NewYork"], required=True)
     ap.add_argument("--provider", choices=list(CALLERS), default=os.environ.get("DESK_PROVIDER", "gemini"))

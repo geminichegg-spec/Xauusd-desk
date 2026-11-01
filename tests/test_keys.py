@@ -25,7 +25,7 @@ class KeysTest(unittest.TestCase):
             with self.assertRaises(RuntimeError) as cm:
                 keys.get_key("grok")
             self.assertIn("XAI_API_KEY", str(cm.exception))
-            self.assertEqual(keys.status(), {"gemini": False, "grok": False, "typesafe": False})
+            self.assertEqual(keys.status(), {"gemini": False, "grok": False, "groq": False, "typesafe": False})
 
     def test_default_models(self):
         with mock.patch.dict(os.environ, {}, clear=True):
@@ -37,7 +37,7 @@ class KeysTest(unittest.TestCase):
         path = os.path.join(os.path.dirname(__file__), "..", ".env.example")
         with open(path) as f:
             for line in f:
-                if line.startswith(("GEMINI_API_KEY", "XAI_API_KEY", "TYPESAFE_API_KEY")):
+                if line.startswith(("GEMINI_API_KEY", "XAI_API_KEY", "GROQ_API_KEY", "TYPESAFE_API_KEY")):
                     self.assertEqual(line.strip().split("=", 1)[1], "")
 
 
