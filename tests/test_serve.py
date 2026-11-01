@@ -97,10 +97,16 @@ class ServeTest(unittest.TestCase):
         path = os.path.join(self.runs, r["run_id"] + ".json")
         self.assertTrue(os.path.exists(path))
 
+        code, raw = self.req("GET", "/api/runs")
+        pending = [x["run_id"] for x in json.loads(raw)["runs"]]
+        self.assertIn(r["run_id"], pending)
+
         code, raw = self.req("POST", "/api/decision", {"run_id": r["run_id"], "decision": "approved", "note": "ok"})
         self.assertEqual(code, 200, raw)
         with open(path) as f:
             self.assertEqual(json.load(f)["decision"]["value"], "approved")
+        pending = [x["run_id"] for x in json.loads(self.req("GET", "/api/runs")[1])["runs"]]
+        self.assertNotIn(r["run_id"], pending)
 
     def test_run_needs_candles_and_valid_provider(self):
         self.assertEqual(self.req("POST", "/api/run", {"session": "London"})[0], 400)

@@ -50,7 +50,9 @@ ANALYST can be run by **Google Gemini** or **Grok (xAI)**, and **TypeSafe AI (Je
 python3 serve.py            # then open http://127.0.0.1:8765
 ```
 
-1. The console at the top shows `serve.py online` and which keys are set (yes/no only).
+The top of the page is the **CARDINAL bridge**: an energy core showing the RISK verdict, a 24-hour dial with the Asia/London/NY sessions and both ORB windows, and arcs for confidence, R:R and daily loss. SYSTEMS on the left shows each desk agent's state (amber means it needs you), and WAITING ON YOU on the right lists saved plans to **Approve** or put off till **Later**. Type or say commands in the bar (London brief, NY brief, status, what's waiting, run analyst, focus mode); CARDINAL answers in text and, with Voice ON, out loud in a British voice. Briefs and status are worked out in the page from your loaded data; only Run ANALYST calls a model. The operator name defaults to Mazhar; change it with `localStorage.setItem("cardinal.operator", "Name")` in the browser console.
+
+1. The console below the bridge shows `serve.py online` and which keys are set (yes/no only).
 2. Load your session candles with **Load JSON** (or drop the file on the page). The sample candles are synthetic.
 3. Pick the session, Gemini or Grok, tick **Jev review** if you have a TypeSafe key, add any volume profile / whale / macro notes, then **Run ANALYST**.
 4. The plan, the Python RISK verdict and Jev's opinion fill the HUD. Changing P&L or news times re-runs the Python gate.

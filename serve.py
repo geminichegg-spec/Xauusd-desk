@@ -6,7 +6,7 @@ Then open http://127.0.0.1:8765 in your browser. The HUD can then:
   * show which API keys are set (yes/no only, never the key),
   * run ANALYST (Gemini or Grok) on the candles you loaded, with an optional Jev review,
   * re-check any plan with the real Python RISK gate,
-  * record your approve / reject decision in runs/ (gitignored).
+  * list runs still waiting on you, and record your approve / reject decision in runs/ (gitignored).
 
 Keys stay in .env or your environment, are read only by this process, and never reach
 the browser. The server listens on 127.0.0.1 only, accepts only JSON POSTs from a
@@ -64,6 +64,33 @@ def save_run(record: dict) -> str:
     return run_id
 
 
+def pending_runs(limit: int = 20) -> list[dict]:
+    """Saved runs you have not approved or rejected yet, newest first (for the HUD's queue)."""
+    if not os.path.isdir(RUNS):
+        return []
+    out = []
+    for name in sorted(os.listdir(RUNS), reverse=True):
+        if not name.endswith(".json") or not RUN_ID.match(name[:-5]):
+            continue
+        try:
+            with open(os.path.join(RUNS, name), encoding="utf-8") as f:
+                rec = json.load(f)
+        except (OSError, ValueError):
+            continue
+        if rec.get("decision"):
+            continue
+        res = rec.get("result") or {}
+        jr = res.get("jev_review") or None
+        out.append({"run_id": rec.get("run_id", name[:-5]), "session": rec.get("session"),
+                    "provider": res.get("provider"), "plan": res.get("plan"),
+                    "risk": {"verdict": (res.get("risk") or {}).get("verdict"),
+                             "reasons": (res.get("risk") or {}).get("reasons", [])},
+                    "jev": {"agrees": jr.get("agrees")} if isinstance(jr, dict) and "agrees" in jr else None})
+        if len(out) >= limit:
+            break
+    return out
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "XAUUSDDesk/1"
     cfg: RiskConfig = RiskConfig()
@@ -115,6 +142,8 @@ class Handler(BaseHTTPRequestHandler):
                 "default_provider": os.environ.get("DESK_PROVIDER", "gemini"),
                 "config": self.cfg.__dict__,
             })
+        if path == "/api/runs":
+            return self._send(200, {"runs": pending_runs()})
         return self._send(404, {"error": "not found"})
 
     def do_POST(self):
