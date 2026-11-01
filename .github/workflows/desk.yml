@@ -1,0 +1,42 @@
+name: desk
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      session:
+        description: "London or NewYork"
+        default: London
+      provider:
+        description: "gemini or grok"
+        default: gemini
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m unittest discover -s tests -v
+
+  # Manual run only (Actions tab > desk > Run workflow). Uses repo secrets, never committed keys.
+  analyst:
+    if: github.event_name == 'workflow_dispatch'
+    needs: test
+    runs-on: ubuntu-latest
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python keys.py
+      - run: python analyst.py examples/candles_london.json --session "$SESSION" --provider "$PROVIDER"
+        env:
+          SESSION: ${{ inputs.session }}
+          PROVIDER: ${{ inputs.provider }}

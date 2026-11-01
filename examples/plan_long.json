@@ -1,0 +1,23 @@
+{
+  "symbol": "XAUUSD",
+  "session": "London",
+  "orb_high": 2660.0,
+  "orb_low": 2650.0,
+  "direction": "long",
+  "entry": 2661.0,
+  "stop": 2655.0,
+  "targets": [
+    2673.0,
+    2680.0
+  ],
+  "confidence": 0.7,
+  "reward_risk": 2.0,
+  "volume_profile_confluence": "moderate",
+  "whale_or_gamex_confluence": "not_available",
+  "key_levels": [
+    "ORB high 2660",
+    "VAH 2662"
+  ],
+  "invalidation": "15m close back below 2655",
+  "reasoning": "Break of ORB high into LVN above VAH."
+}

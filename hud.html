@@ -1,0 +1,746 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>XAUUSD Cardinal HUD</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&family=IBM+Plex+Sans:wght@400;500&display=swap">
+<style>
+/* Layout: a single dark heads-up console. Verdict strip on top, then a 12-col grid of bracketed instrument panels. Gold = the instrument, cyan = time, semantic red/green/amber = state. */
+:root{
+  color-scheme: dark;
+  --bg:#060a11; --panel:#0a111c; --panel-2:#0e1726; --line:#1a2a40; --line-hi:#2a4262;
+  --fg:#d9e3f0; --dim:#7d8ea6; --faint:#4a5a72;
+  --gold:#e9b949; --gold-dim:rgba(233,185,73,.16);
+  --cyan:#5cd2e6; --cyan-dim:rgba(92,210,230,.14);
+  --good:#46d38a; --bad:#ff5a5f; --warn:#f3a536;
+  --good-dim:rgba(70,211,138,.14); --bad-dim:rgba(255,90,95,.14); --warn-dim:rgba(243,165,54,.14);
+  --f-display:"Chakra Petch","Rajdhani","Segoe UI",system-ui,sans-serif;
+  --f-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+::placeholder{color:var(--faint)}
+html,body{background:var(--bg)}
+body{
+  color:var(--fg); font-family:var(--f-body); font-size:14px; line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px)); padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:16px 32px;
+  background:
+    radial-gradient(1200px 500px at 70% -10%, rgba(233,185,73,.07), transparent 60%),
+    radial-gradient(900px 500px at 0% 110%, rgba(92,210,230,.05), transparent 60%),
+    repeating-linear-gradient(0deg, rgba(255,255,255,.012) 0 1px, transparent 1px 3px),
+    var(--bg);
+  min-height:100%;
+}
+.wrap{max-width:1440px; margin:0 auto; display:flex; flex-direction:column; gap:14px}
+.mono{font-family:var(--f-mono); font-variant-numeric:tabular-nums}
+.lbl{font-family:var(--f-display); font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--dim); font-weight:600}
+button,select,input,textarea{font:inherit; color:var(--fg)}
+:focus-visible{outline:2px solid var(--cyan); outline-offset:2px}
+
+/* top bar */
+.top{display:flex; flex-wrap:wrap; align-items:center; gap:10px 18px; border-bottom:1px solid var(--line); padding-bottom:12px}
+.brand{display:flex; align-items:baseline; gap:12px; flex-wrap:wrap}
+.brand h1{font-family:var(--f-display); font-weight:700; font-size:22px; letter-spacing:.06em; margin:0; color:var(--gold)}
+.brand h1 span{color:var(--fg)}
+.brand .sub{font-family:var(--f-display); letter-spacing:.18em; font-size:11px; color:var(--dim); text-transform:uppercase}
+.top .spacer{flex:1}
+.utc{font-family:var(--f-mono); font-size:15px; color:var(--cyan)}
+.utc small{color:var(--dim); font-size:11px; margin-left:6px}
+.src{font-family:var(--f-display); font-size:11px; letter-spacing:.12em; text-transform:uppercase; padding:4px 10px; border:1px solid; }
+.src.sample{color:var(--warn); border-color:var(--warn); background:var(--warn-dim)}
+.src.user{color:var(--cyan); border-color:var(--cyan); background:var(--cyan-dim)}
+.tools{display:flex; gap:8px; flex-wrap:wrap}
+.btn{background:var(--panel-2); border:1px solid var(--line-hi); padding:6px 12px; cursor:pointer; font-family:var(--f-display); font-size:12px; letter-spacing:.1em; text-transform:uppercase; font-weight:600}
+.btn:hover{border-color:var(--gold); color:var(--gold)}
+.btn.primary{border-color:var(--gold); color:var(--gold); background:var(--gold-dim)}
+
+/* verdict strip */
+.strip{display:grid; grid-template-columns: minmax(0,1.3fr) repeat(4,minmax(0,1fr)); gap:1px; background:var(--line); border:1px solid var(--line)}
+.strip > div{background:var(--panel); padding:12px 16px; display:flex; flex-direction:column; gap:4px; min-width:0}
+.verdict{font-family:var(--f-display); font-weight:700; font-size:34px; letter-spacing:.08em; line-height:1}
+.v-APPROVE{color:var(--good); text-shadow:0 0 18px rgba(70,211,138,.45)}
+.v-REJECT{color:var(--bad); text-shadow:0 0 18px rgba(255,90,95,.45)}
+.v-NO_TRADE{color:var(--warn); text-shadow:0 0 18px rgba(243,165,54,.4)}
+.v-WAIT{color:var(--dim)}
+.big{font-family:var(--f-mono); font-size:22px; font-weight:700; font-variant-numeric:tabular-nums; overflow-wrap:anywhere}
+.note{font-size:12px; color:var(--dim)}
+
+/* grid + panels */
+.grid{display:grid; grid-template-columns:repeat(12,minmax(0,1fr)); gap:14px; align-items:start}
+.panel{position:relative; background:linear-gradient(180deg,var(--panel-2),var(--panel)); border:1px solid var(--line); padding:14px 16px 16px; min-width:0; display:flex; flex-direction:column; gap:12px}
+.panel::before,.panel::after{content:""; position:absolute; width:12px; height:12px; border:2px solid var(--gold); pointer-events:none}
+.panel::before{top:-1px; left:-1px; border-right:0; border-bottom:0}
+.panel::after{bottom:-1px; right:-1px; border-left:0; border-top:0}
+.ph{display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap}
+.ph h2{margin:0; font-family:var(--f-display); font-size:13px; letter-spacing:.16em; text-transform:uppercase; font-weight:700; color:var(--fg)}
+.ph h2 b{color:var(--gold); font-weight:700; margin-right:8px}
+.s4{grid-column:span 4} .s5{grid-column:span 5} .s7{grid-column:span 7} .s8{grid-column:span 8} .s6{grid-column:span 6} .s12{grid-column:span 12}
+
+.chip{display:inline-flex; align-items:center; gap:6px; font-family:var(--f-display); font-size:11px; letter-spacing:.12em; text-transform:uppercase; font-weight:600; padding:3px 8px; border:1px solid currentColor; white-space:nowrap}
+.chip::before{content:""; width:6px; height:6px; background:currentColor; box-shadow:0 0 8px currentColor}
+.c-good{color:var(--good); background:var(--good-dim)} .c-bad{color:var(--bad); background:var(--bad-dim)}
+.c-warn{color:var(--warn); background:var(--warn-dim)} .c-cyan{color:var(--cyan); background:var(--cyan-dim)}
+.c-dim{color:var(--dim); background:transparent} .c-gold{color:var(--gold); background:var(--gold-dim)}
+.c-na{color:var(--faint); background:repeating-linear-gradient(135deg, transparent 0 4px, rgba(125,142,166,.12) 4px 8px)}
+.c-na::before{box-shadow:none}
+
+/* sessions */
+.clocks{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+.clock{border:1px solid var(--line); padding:10px 12px; display:flex; flex-direction:column; gap:6px; background:rgba(6,10,17,.5); min-width:0}
+.clock .t{font-family:var(--f-mono); font-size:26px; font-weight:700; color:var(--cyan); letter-spacing:.02em; text-shadow:0 0 14px rgba(92,210,230,.35)}
+.clock .row{display:flex; justify-content:space-between; gap:8px; font-size:12px; color:var(--dim); flex-wrap:wrap}
+.clock .row .mono{color:var(--fg)}
+.clock .orb{display:flex; gap:10px; font-family:var(--f-mono); font-size:13px; flex-wrap:wrap}
+.clock .orb .hi{color:var(--good)} .clock .orb .lo{color:var(--bad)}
+.timeline{position:relative; height:46px; border:1px solid var(--line); background:rgba(6,10,17,.6)}
+.timeline .band{position:absolute; top:0; bottom:16px; opacity:.9}
+.timeline .band span{position:absolute; left:4px; top:3px; font-family:var(--f-display); font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--fg); white-space:nowrap}
+.timeline .orbw{position:absolute; top:16px; bottom:16px; background:var(--gold); box-shadow:0 0 10px var(--gold)}
+.timeline .now{position:absolute; top:-4px; bottom:12px; width:2px; background:var(--cyan); box-shadow:0 0 10px var(--cyan)}
+.timeline .ticks{position:absolute; left:0; right:0; bottom:0; height:16px; border-top:1px solid var(--line)}
+.timeline .ticks i{position:absolute; bottom:1px; font-style:normal; font-family:var(--f-mono); font-size:9px; color:var(--faint); transform:translateX(-50%)}
+
+/* plan */
+.dir{font-family:var(--f-display); font-weight:700; font-size:28px; letter-spacing:.1em}
+.dir.long{color:var(--good)} .dir.short{color:var(--bad)} .dir.flat{color:var(--warn)}
+.levels{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:1px; background:var(--line); border:1px solid var(--line)}
+.levels > div{background:var(--panel); padding:8px 10px; display:flex; flex-direction:column; gap:2px; min-width:0}
+.levels .v{font-family:var(--f-mono); font-size:17px; font-weight:700; font-variant-numeric:tabular-nums}
+.levels .d{font-family:var(--f-mono); font-size:11px; color:var(--dim)}
+.chartbox{overflow-x:auto; border:1px solid var(--line); background:rgba(6,10,17,.6)}
+.chartbox svg{display:block; width:100%; min-width:520px; height:auto}
+.kv{display:grid; grid-template-columns:auto minmax(0,1fr); gap:6px 14px; font-size:13px}
+.kv dt{color:var(--dim); font-family:var(--f-display); letter-spacing:.1em; text-transform:uppercase; font-size:11px; padding-top:2px}
+.kv dd{margin:0; min-width:0; overflow-wrap:anywhere}
+.tags{display:flex; flex-wrap:wrap; gap:6px}
+.tag{font-family:var(--f-mono); font-size:12px; padding:2px 8px; border:1px solid var(--line-hi); color:var(--fg)}
+
+/* gauges */
+.gauges{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+.gauge{border:1px solid var(--line); padding:10px; display:flex; flex-direction:column; align-items:center; gap:4px; background:rgba(6,10,17,.5)}
+.gauge svg{width:100%; max-width:180px; height:auto}
+
+/* confluence */
+.conf{display:flex; flex-direction:column; gap:10px}
+.conf .item{display:flex; justify-content:space-between; align-items:center; gap:10px; border-bottom:1px dashed var(--line); padding-bottom:8px; flex-wrap:wrap}
+.conf .item:last-child{border-bottom:0; padding-bottom:0}
+.conf .item .what{display:flex; flex-direction:column; gap:2px; min-width:0}
+.conf .item .what b{font-family:var(--f-display); letter-spacing:.08em; font-weight:600}
+
+/* checks */
+.checks{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:1px; background:var(--line); border:1px solid var(--line)}
+.checks li{background:var(--panel); display:grid; grid-template-columns:22px minmax(0,190px) minmax(0,1fr); gap:10px; padding:7px 10px; align-items:start; font-size:12.5px}
+.checks .ok{color:var(--good); font-family:var(--f-mono); font-weight:700}
+.checks .no{color:var(--bad); font-family:var(--f-mono); font-weight:700}
+.checks .name{font-family:var(--f-mono); color:var(--fg); overflow-wrap:anywhere}
+.checks .det{color:var(--dim); overflow-wrap:anywhere}
+.checks li.fail{background:linear-gradient(90deg,var(--bad-dim),var(--panel) 60%)}
+
+/* loss meter */
+.meter{position:relative; height:22px; border:1px solid var(--line-hi); background:repeating-linear-gradient(90deg, transparent 0 9.6%, var(--line) 9.6% 10%) , rgba(6,10,17,.6)}
+.meter .fill{position:absolute; left:0; top:0; bottom:0; transition:width .4s ease}
+.meter .mark{position:absolute; top:-5px; bottom:-5px; width:2px; background:var(--fg)}
+.meter-scale{display:flex; justify-content:space-between; font-family:var(--f-mono); font-size:11px; color:var(--faint)}
+
+/* inputs */
+.inputs{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px}
+.field{display:flex; flex-direction:column; gap:5px; min-width:0}
+.field input,.field select,.field textarea{background:var(--bg); border:1px solid var(--line-hi); padding:7px 9px; font-family:var(--f-mono); font-size:13px; width:100%; min-width:0}
+.field textarea{min-height:120px; resize:vertical}
+.paste{display:flex; flex-direction:column; gap:8px}
+.err{color:var(--bad); font-family:var(--f-mono); font-size:12px; white-space:pre-wrap}
+.drop{position:fixed; inset:0; background:rgba(6,10,17,.85); border:2px dashed var(--gold); display:flex; align-items:center; justify-content:center; font-family:var(--f-display); font-size:22px; letter-spacing:.2em; color:var(--gold); z-index:20}
+.foot{font-size:12px; color:var(--faint); display:flex; flex-direction:column; gap:4px; max-width:90ch}
+.foot code{font-family:var(--f-mono); color:var(--dim)}
+
+@media (max-width:1100px){
+  .s4,.s5{grid-column:span 6} .s7,.s8{grid-column:span 12}
+  .strip{grid-template-columns:repeat(3,minmax(0,1fr))} .strip > div:first-child{grid-column:span 3}
+  .inputs{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:720px){
+  .s4,.s5,.s6{grid-column:span 12}
+  .strip{grid-template-columns:repeat(2,minmax(0,1fr))} .strip > div:first-child{grid-column:span 2}
+  .clocks,.gauges{grid-template-columns:1fr}
+  .levels{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .inputs{grid-template-columns:1fr}
+  .checks li{grid-template-columns:22px minmax(0,1fr)} .checks .det{grid-column:2}
+  .verdict{font-size:28px}
+}
+@media (prefers-reduced-motion:reduce){ *{transition:none!important; animation:none!important} }
+@keyframes pulse{50%{opacity:.35}}
+.live::before{animation:pulse 1.6s ease-in-out infinite}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>XAU<span>USD</span></h1>
+      <div class="sub">Cardinal desk · London + NY ORB</div>
+    </div>
+    <span id="src" class="src sample">Sample data</span>
+    <div class="spacer"></div>
+    <div class="utc"><span id="utcNow">--:--:--</span><small>UTC</small></div>
+    <div class="tools">
+      <label class="btn primary" for="fileIn">Load JSON</label>
+      <input id="fileIn" type="file" accept=".json,application/json" multiple hidden>
+      <button class="btn" id="pasteBtn" type="button">Paste JSON</button>
+      <button class="btn" id="resetBtn" type="button">Sample</button>
+    </div>
+  </header>
+
+  <section class="strip" aria-label="Status summary">
+    <div>
+      <span class="lbl">RISK gate verdict</span>
+      <div id="verdict" class="verdict v-WAIT">—</div>
+      <span id="verdictWhy" class="note"></span>
+    </div>
+    <div><span class="lbl">Direction · session</span><div id="sDir" class="big">—</div><span id="sSess" class="note"></span></div>
+    <div><span class="lbl">R:R to T1</span><div id="sRR" class="big">—</div><span id="sRRn" class="note"></span></div>
+    <div><span class="lbl">Confidence</span><div id="sConf" class="big">—</div><span id="sConfn" class="note"></span></div>
+    <div><span class="lbl">Daily loss left</span><div id="sLoss" class="big">—</div><span id="sLossn" class="note"></span></div>
+  </section>
+
+  <section class="panel s12" id="pastePanel" hidden>
+    <div class="ph"><h2><b>//</b>Paste JSON</h2><span class="note">A plan, a candle list, a config, or a bundle {plan, candles, pnl_today, macro, news, config}</span></div>
+    <div class="paste">
+      <div class="field"><label class="lbl" for="pasteTxt">JSON</label><textarea id="pasteTxt" spellcheck="false" placeholder='{"plan": {...}, "candles": [...], "pnl_today": -120, "macro": {"bias": "bullish", "note": "real yields falling"}}'></textarea></div>
+      <div class="tools"><button class="btn primary" id="pasteApply" type="button">Apply</button><button class="btn" id="pasteClose" type="button">Close</button></div>
+      <div id="pasteErr" class="err"></div>
+    </div>
+  </section>
+
+  <div class="grid">
+    <!-- Sessions -->
+    <section class="panel s5" aria-labelledby="h-sess">
+      <div class="ph"><h2 id="h-sess"><b>01</b>Sessions</h2><span id="mkt" class="chip c-dim">—</span></div>
+      <div class="clocks">
+        <div class="clock" id="ck-London">
+          <div class="row"><span class="lbl">London</span><span class="chip c-dim" data-st>—</span></div>
+          <div class="t mono" data-time>--:--:--</div>
+          <div class="row"><span>ORB window</span><span class="mono" data-win>—</span></div>
+          <div class="row"><span data-cdl>Opens in</span><span class="mono" data-cd>—</span></div>
+          <div class="orb" data-orb></div>
+        </div>
+        <div class="clock" id="ck-NewYork">
+          <div class="row"><span class="lbl">New York</span><span class="chip c-dim" data-st>—</span></div>
+          <div class="t mono" data-time>--:--:--</div>
+          <div class="row"><span>ORB window</span><span class="mono" data-win>—</span></div>
+          <div class="row"><span data-cdl>Opens in</span><span class="mono" data-cd>—</span></div>
+          <div class="orb" data-orb></div>
+        </div>
+      </div>
+      <div>
+        <div class="timeline" id="timeline" aria-label="24 hour UTC timeline"></div>
+      </div>
+      <div id="dstNote" class="note"></div>
+    </section>
+
+    <!-- Plan -->
+    <section class="panel s7" aria-labelledby="h-plan">
+      <div class="ph"><h2 id="h-plan"><b>02</b>ANALYST plan</h2><span id="planSess" class="chip c-gold">—</span></div>
+      <div style="display:flex; align-items:baseline; gap:16px; flex-wrap:wrap">
+        <div id="pDir" class="dir">—</div>
+        <div class="mono note" id="pOrb">—</div>
+      </div>
+      <div class="levels">
+        <div><span class="lbl">Entry</span><span id="lvEntry" class="v" style="color:var(--gold)">—</span><span id="lvEntryD" class="d">&nbsp;</span></div>
+        <div><span class="lbl">Stop</span><span id="lvStop" class="v" style="color:var(--bad)">—</span><span id="lvStopD" class="d">&nbsp;</span></div>
+        <div><span class="lbl">Target 1</span><span id="lvT1" class="v" style="color:var(--good)">—</span><span id="lvT1D" class="d">&nbsp;</span></div>
+        <div><span class="lbl">Target 2</span><span id="lvT2" class="v" style="color:var(--good)">—</span><span id="lvT2D" class="d">&nbsp;</span></div>
+      </div>
+      <div class="chartbox" id="chart"></div>
+      <dl class="kv">
+        <dt>Invalidation</dt><dd id="pInv">—</dd>
+        <dt>Reasoning</dt><dd id="pWhy">—</dd>
+        <dt>Key levels</dt><dd><div class="tags" id="pKeys"></div></dd>
+      </dl>
+    </section>
+
+    <!-- Confluence + macro -->
+    <section class="panel s4" aria-labelledby="h-conf">
+      <div class="ph"><h2 id="h-conf"><b>03</b>Confluence + macro</h2></div>
+      <div class="conf">
+        <div class="item"><div class="what"><b>Volume profile</b><span class="note">HVN / LVN, VAH / VAL support</span></div><span id="cVP" class="chip c-na">—</span></div>
+        <div class="item"><div class="what"><b>Whale / GameX</b><span class="note">Large orders, dealer flow</span></div><span id="cWh" class="chip c-na">—</span></div>
+        <div class="item"><div class="what"><b>Macro bias</b><span class="note" id="cMacroNote">Not supplied</span></div><span id="cMacro" class="chip c-na">—</span></div>
+        <div class="item"><div class="what"><b>Macro vs plan</b><span class="note" id="cAlignNote"></span></div><span id="cAlign" class="chip c-dim">—</span></div>
+      </div>
+      <div id="noConfBanner" class="note" hidden style="border:1px solid var(--warn); color:var(--warn); padding:8px 10px; background:var(--warn-dim)">Volume/whale data not available. Plan is based on price and ORB only.</div>
+      <div class="gauges">
+        <div class="gauge"><span class="lbl">Confidence</span><div id="gConf"></div></div>
+        <div class="gauge"><span class="lbl">R:R to T1</span><div id="gRR"></div></div>
+      </div>
+    </section>
+
+    <!-- Risk checks -->
+    <section class="panel s4" aria-labelledby="h-risk">
+      <div class="ph"><h2 id="h-risk"><b>04</b>RISK gate</h2><span id="riskChip" class="chip c-dim">—</span></div>
+      <ul class="checks" id="checks"></ul>
+      <span class="note">Browser mirror of <span class="mono">risk_gate.py</span> with your config. The Python gate is the authority before anything leaves the desk.</span>
+    </section>
+
+    <!-- Daily loss -->
+    <section class="panel s4" aria-labelledby="h-loss">
+      <div class="ph"><h2 id="h-loss"><b>05</b>Daily loss</h2><span id="lossChip" class="chip c-dim">—</span></div>
+      <div style="display:flex; align-items:baseline; justify-content:space-between; gap:10px; flex-wrap:wrap">
+        <div><span class="lbl">Used</span><div id="lossUsed" class="big">—</div></div>
+        <div style="text-align:right"><span class="lbl">Limit</span><div id="lossLimit" class="big" style="color:var(--dim)">—</div></div>
+      </div>
+      <div class="meter" aria-hidden="true"><div class="fill" id="lossFill"></div></div>
+      <div class="meter-scale"><span>0</span><span>50%</span><span id="lossScaleMax">limit</span></div>
+      <div class="note" id="lossNote"></div>
+      <div class="note" id="tradeRisk"></div>
+    </section>
+
+    <!-- Inputs -->
+    <section class="panel s12" aria-labelledby="h-in">
+      <div class="ph"><h2 id="h-in"><b>06</b>Desk inputs</h2><span class="note">Changes re-run the gate instantly. Nothing here places orders.</span></div>
+      <div class="inputs">
+        <div class="field"><label class="lbl" for="inPnl">Realized P&amp;L today ($)</label><input id="inPnl" type="number" step="1"></div>
+        <div class="field"><label class="lbl" for="inMacro">Macro bias (from MACRO)</label>
+          <select id="inMacro"><option value="not_available">not_available</option><option value="bullish">bullish</option><option value="bearish">bearish</option><option value="neutral">neutral</option></select></div>
+        <div class="field"><label class="lbl" for="inMacroNote">Macro note</label><input id="inMacroNote" type="text" placeholder="e.g. real yields falling, DXY soft"></div>
+        <div class="field"><label class="lbl" for="inNews">USD news times (UTC, comma-separated)</label><input id="inNews" type="text" placeholder="2026-11-03T13:30:00Z"></div>
+      </div>
+      <div id="loadErr" class="err"></div>
+    </section>
+  </div>
+
+  <footer class="foot">
+    <span id="footSrc"></span>
+    <span>Load or drop JSON files: an ANALYST plan, candles <code>[{t,o,h,l,c}]</code>, a <code>config.json</code>, or one bundle <code>{"plan", "candles", "pnl_today", "macro": {"bias","note"}, "news": [], "config", "label"}</code>. This HUD never fetches prices. Every number on it comes from what you load.</span>
+    <span>Market-hours badge is approximate (spot gold roughly Sun 22:00 to Fri 21:00 UTC). Broker hours vary.</span>
+  </footer>
+</div>
+<div class="drop" id="drop" hidden>Drop JSON to load</div>
+
+<script>
+(() => {
+"use strict";
+const DEFAULT_CFG = {min_rr:1.8, min_confidence:0.55, daily_loss_limit:500, rr_target_index:0, rr_tolerance:0.15,
+  price_tolerance:0.05, skip_no_confluence:true, no_confluence_min_confidence:0.65,
+  orb_start:{London:"08:00", NewYork:"13:30"}, orb_minutes:30, news_blackout_minutes:10};
+
+// SAMPLE = examples/plan_long.json + examples/candles_london.json from the desk. Synthetic, not market prices.
+const SAMPLE_PLAN = {"symbol":"XAUUSD","session":"London","orb_high":2660.0,"orb_low":2650.0,"direction":"long","entry":2661.0,"stop":2655.0,"targets":[2673.0,2680.0],"confidence":0.7,"reward_risk":2.0,"volume_profile_confluence":"moderate","whale_or_gamex_confluence":"not_available","key_levels":["ORB high 2660","VAH 2662"],"invalidation":"15m close back below 2655","reasoning":"Break of ORB high into LVN above VAH."};
+const SAMPLE_CANDLES = (() => {
+  const out = [], t0 = Date.UTC(2026,10,3,7,30);
+  for (let i=0;i<30;i++){
+    const t = new Date(t0 + i*300000).toISOString().replace(".000","");
+    let o,h,l,c;
+    if (i<6){o=2645;h=2656;l=2645;c=2656}
+    else if (i<12){o=2650;h=2660;l=2650;c=2660}
+    else if (i===12){o=2655;h=2660;l=2655;c=2660}
+    else {o=2655;l=2655;h=+(2660+1.7*(i-12)).toFixed(1);c=h}
+    out.push({t,o,h,l,c});
+  }
+  return out;
+})();
+
+const SESSIONS=["London","NewYork"], DIRS=["long","short","flat"];
+const VP=["strong","moderate","weak","not_available"], WH=["supportive","opposing","neutral","not_available"];
+const TZ={London:"Europe/London", NewYork:"America/New_York"};
+
+let S;
+function sampleState(){
+  return {plan:SAMPLE_PLAN, candles:SAMPLE_CANDLES, pnl:-120, macro:{bias:"not_available", note:""}, news:[], cfg:{...DEFAULT_CFG},
+    sample:true, label:"Sample: examples/plan_long.json + candles_london.json (synthetic, not market prices)", files:[]};
+}
+S = sampleState();
+
+/* ---------- helpers ---------- */
+const $ = id => document.getElementById(id);
+const isNum = x => typeof x==="number" && Number.isFinite(x);
+const f2 = x => isNum(x) ? x.toFixed(2) : "—";
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const money = x => (x<0?"-$":"$") + Math.abs(x).toLocaleString("en-US",{maximumFractionDigits:2});
+function pyNum(x){ return Number.isInteger(x) ? x.toFixed(1) : String(x); } // mirror Python float repr in details
+function parseTime(v){
+  if (v==null) return null;
+  if (isNum(v)) return new Date(v>1e11 ? v : v*1000);
+  let s=String(v).trim(); if(!/[zZ]|[+-]\d\d:?\d\d$/.test(s)) s+="Z";
+  const d=new Date(s); return isNaN(d) ? null : d;
+}
+const pick=(o,...k)=>{for(const x of k) if(o && x in o) return o[x]; return undefined;};
+
+function normalizeCandles(cs){
+  if(!Array.isArray(cs)) throw new Error("candles must be a list");
+  const out = cs.map((c,i)=>{
+    const h=pick(c,"h","high"), l=pick(c,"l","low"), o=pick(c,"o","open"), cl=pick(c,"c","close");
+    if(!(isNum(h)&&isNum(l)) || h<l) throw new Error(`candle ${i} has a missing or inverted high/low`);
+    return {t:parseTime(pick(c,"t","time","timestamp","datetime")), h, l, o:isNum(o)?o:null, c:isNum(cl)?cl:null};
+  });
+  if(!out.length) throw new Error("no candles supplied");
+  return out;
+}
+function computeOrb(bars, session, cfg){
+  const timed=bars.filter(b=>b.t); if(!timed.length || !(session in cfg.orb_start)) return null;
+  const [hh,mm]=cfg.orb_start[session].split(":").map(Number);
+  const days=[...new Set(timed.map(b=>b.t.toISOString().slice(0,10)))].sort().reverse();
+  for(const day of days){
+    const [y,m,d]=day.split("-").map(Number);
+    const start=Date.UTC(y,m-1,d,hh,mm), end=start+cfg.orb_minutes*60000;
+    const inside=timed.filter(b=>b.t.getTime()>=start && b.t.getTime()<end);
+    if(inside.length) return {date:day, high:Math.max(...inside.map(b=>b.h)), low:Math.min(...inside.map(b=>b.l)), bars:inside.length, start, end};
+  }
+  return null;
+}
+
+/* ---------- port of risk_gate.validate_plan ---------- */
+const REQ=["symbol","session","orb_high","orb_low","direction","entry","stop","targets","confidence","reward_risk","volume_profile_confluence","whale_or_gamex_confluence","key_levels","invalidation","reasoning"];
+function validatePlan(p){
+  if(!p || typeof p!=="object" || Array.isArray(p)) return ["plan is not a JSON object"];
+  const e=[];
+  for(const k of REQ) if(!(k in p)) e.push(`missing field: ${k}`);
+  const extra=Object.keys(p).filter(k=>!REQ.includes(k)); if(extra.length) e.push(`unexpected fields: ${extra.sort().join(", ")}`);
+  if(e.length) return e;
+  const flat=p.direction==="flat";
+  if(p.symbol!=="XAUUSD") e.push("symbol must be 'XAUUSD'");
+  if(!SESSIONS.includes(p.session)) e.push("session must be London or NewYork");
+  if(!DIRS.includes(p.direction)) e.push("direction must be long, short or flat");
+  for(const k of ["orb_high","orb_low"]) if(!isNum(p[k])||p[k]<=0) e.push(`${k} must be a positive number`);
+  if(isNum(p.orb_high)&&isNum(p.orb_low)&&p.orb_high<=p.orb_low) e.push("orb_high must be above orb_low");
+  for(const k of ["entry","stop"]){ const v=p[k]; if(!(isNum(v)&&v>0) && !(flat&&v===null)) e.push(`${k} must be a positive number`+(flat?" (or null when flat)":"")); }
+  const t=p.targets;
+  if(!(flat && (t===null || (Array.isArray(t)&&t.length===0))) && !(Array.isArray(t)&&t.length===2&&t.every(x=>isNum(x)&&x>0))) e.push("targets must be a list of exactly two positive numbers");
+  if(!isNum(p.confidence)||p.confidence<0||p.confidence>1) e.push("confidence must be a number between 0.0 and 1.0");
+  if(!isNum(p.reward_risk)||p.reward_risk<0) e.push("reward_risk must be a non-negative number");
+  if(!VP.includes(p.volume_profile_confluence)) e.push("volume_profile_confluence must be one of "+VP.join(", "));
+  if(!WH.includes(p.whale_or_gamex_confluence)) e.push("whale_or_gamex_confluence must be one of "+WH.join(", "));
+  if(!(Array.isArray(p.key_levels)&&p.key_levels.every(x=>typeof x==="string"))) e.push("key_levels must be a list of strings");
+  for(const k of ["invalidation","reasoning"]) if(typeof p[k]!=="string"||!p[k].trim()) e.push(`${k} must be a non-empty string`);
+  return e;
+}
+
+/* ---------- port of risk_gate.evaluate ---------- */
+function evaluate(plan, candles, pnl, cfg, now, news){
+  const d={verdict:"APPROVE", reasons:[], checks:[], computed_rr:null, computed_orb:null, range:null};
+  const check=(name,ok,detail)=>{d.checks.push({check:name,ok,detail}); if(!ok) d.reasons.push(`${name}: ${detail}`);};
+  const schema=validatePlan(plan);
+  check("schema", !schema.length, schema.join("; ")||"ANALYST JSON is valid");
+  if(schema.length){d.verdict="REJECT"; return d;}
+  let bars;
+  try{ bars=normalizeCandles(candles||[]); }catch(err){ check("candles",false,err.message); d.verdict="REJECT"; return d; }
+  const lo=Math.min(...bars.map(b=>b.l)), hi=Math.max(...bars.map(b=>b.h)), tol=cfg.price_tolerance;
+  d.range={lo,hi};
+  const inside=p=>lo-tol<=p && p<=hi+tol;
+  const orb=computeOrb(bars,plan.session,cfg); d.computed_orb=orb;
+  if(orb){
+    const ok=Math.abs(orb.high-plan.orb_high)<=tol && Math.abs(orb.low-plan.orb_low)<=tol;
+    check("orb_matches_candles", ok, `candles give ${pyNum(orb.low)}–${pyNum(orb.high)} (${orb.bars} bars), plan says ${pyNum(plan.orb_low)}–${pyNum(plan.orb_high)}`);
+  } else {
+    check("orb_inside_candles", inside(plan.orb_high)&&inside(plan.orb_low), `no timestamped ORB window found; plan ORB ${pyNum(plan.orb_low)}–${pyNum(plan.orb_high)} vs candle range ${pyNum(lo)}–${pyNum(hi)}`);
+  }
+  const lim=Math.abs(cfg.daily_loss_limit);
+  check("daily_loss_limit", !(pnl<=-lim), `realized P&L today ${pyNum(pnl)} vs limit -${pyNum(lim)}`);
+  if(plan.direction==="flat"){ d.verdict=d.reasons.length?"REJECT":"NO_TRADE"; return d; }
+  const {entry,stop,targets}=plan;
+  const lv={entry,stop,target1:targets[0],target2:targets[1]};
+  const out=Object.entries(lv).filter(([,v])=>!inside(v)).map(([k,v])=>`${k}=${pyNum(v)}`);
+  check("levels_inside_candles", !out.length, `candle range ${pyNum(lo)}–${pyNum(hi)}`+(out.length?`; outside: ${out.join(", ")}`:""));
+  let geo,want;
+  if(plan.direction==="long"){geo=stop<entry&&entry<targets[0]&&targets[0]<=targets[1]; want="stop < entry < target1 <= target2";}
+  else {geo=stop>entry&&entry>targets[0]&&targets[0]>=targets[1]; want="stop > entry > target1 >= target2";}
+  check("level_order", geo, `${plan.direction} needs ${want}`);
+  const risk=Math.abs(entry-stop);
+  if(geo && risk>0){
+    const rr=Math.abs(targets[cfg.rr_target_index]-entry)/risk; d.computed_rr=Math.round(rr*1000)/1000;
+    check("min_reward_risk", rr>=cfg.min_rr, `computed R:R ${rr.toFixed(2)} to target${cfg.rr_target_index+1} vs minimum ${cfg.min_rr}`);
+    check("reward_risk_matches", Math.abs(rr-plan.reward_risk)<=cfg.rr_tolerance, `plan reports ${pyNum(plan.reward_risk)}, levels give ${rr.toFixed(2)}`);
+  }
+  const conf=plan.confidence;
+  check("min_confidence", conf>=cfg.min_confidence, `confidence ${conf} vs minimum ${cfg.min_confidence}`);
+  if(cfg.skip_no_confluence){
+    const both=plan.volume_profile_confluence==="not_available" && plan.whale_or_gamex_confluence==="not_available";
+    const skip=both && conf<cfg.no_confluence_min_confidence;
+    check("no_confluence_low_confidence", !skip, (both?"volume profile and whale data both not_available":"at least one confluence source supplied")+(skip?`; confidence ${conf} < ${cfg.no_confluence_min_confidence}`:""));
+  }
+  if(now && news && news.length){
+    const hits=news.map(parseTime).filter(Boolean).filter(e=>e<=now && now<new Date(e.getTime()+cfg.news_blackout_minutes*60000));
+    check("news_blackout", !hits.length, hits.length?`within ${cfg.news_blackout_minutes} min after high-impact USD data`:"outside post-news blackout");
+  }
+  d.verdict=d.reasons.length?"REJECT":"APPROVE";
+  return d;
+}
+
+/* ---------- loading ---------- */
+function ingest(obj, name){
+  if(Array.isArray(obj)){ S.candles=obj; return `candles (${obj.length})`; }
+  if(obj && typeof obj==="object"){
+    if("plan" in obj || "candles" in obj || "pnl_today" in obj || "macro" in obj){
+      const got=[];
+      if(obj.plan!==undefined){S.plan=obj.plan; got.push("plan");}
+      if(obj.candles!==undefined){S.candles=obj.candles; got.push(`candles (${(obj.candles||[]).length})`);}
+      const pnl=pick(obj,"pnl_today","pnl"); if(isNum(pnl)){S.pnl=pnl; got.push("P&L");}
+      if(obj.macro){ S.macro={bias:obj.macro.bias||"not_available", note:obj.macro.note||""}; got.push("macro"); }
+      if(Array.isArray(obj.news)){S.news=obj.news; got.push("news");}
+      if(obj.config){S.cfg={...DEFAULT_CFG,...obj.config}; got.push("config");}
+      if(obj.label) S.label=String(obj.label);
+      return got.join(", ")||"bundle";
+    }
+    if("symbol" in obj || "direction" in obj){ S.plan=obj; return "plan"; }
+    if("min_rr" in obj || "daily_loss_limit" in obj || "orb_start" in obj){ S.cfg={...DEFAULT_CFG,...obj}; return "config"; }
+  }
+  throw new Error(`${name}: not a plan, candle list, config or bundle`);
+}
+function leaveSample(){
+  if(S.sample){ // user data replaces sample wholesale so sample values never mix with real ones
+    S={plan:null, candles:null, pnl:0, macro:{bias:"not_available",note:""}, news:[], cfg:{...DEFAULT_CFG}, sample:false, label:"", files:[]};
+  }
+}
+function loadTexts(items){
+  const errs=[];
+  leaveSample();
+  for(const {name,text} of items){
+    try{ const what=ingest(JSON.parse(text), name); S.files.push(`${name}: ${what}`); }
+    catch(e){ errs.push(`${name}: ${e.message}`); }
+  }
+  if(!S.label || S.label.startsWith("Loaded")) S.label="Loaded: "+S.files.join(" · ");
+  syncInputs(); render();
+  return errs.join("\n");
+}
+async function loadFiles(files){
+  const items=[]; for(const f of files) items.push({name:f.name, text:await f.text()});
+  $("loadErr").textContent=loadTexts(items);
+}
+
+/* ---------- rendering ---------- */
+function chip(el, text, cls){ el.className="chip "+cls; el.textContent=text; }
+function gauge(value, max, threshold, color, label){
+  const W=180,H=104,cx=90,cy=92,r=72, a0=Math.PI, frac=Math.max(0,Math.min(1,value/max));
+  const pt=f=>[cx+r*Math.cos(a0+f*Math.PI), cy+r*Math.sin(a0+f*Math.PI)];
+  const arc=(f0,f1)=>{const [x0,y0]=pt(f0),[x1,y1]=pt(f1); return `M${x0.toFixed(1)} ${y0.toFixed(1)} A${r} ${r} 0 0 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`;};
+  const th=Math.max(0,Math.min(1,threshold/max)), [tx0,ty0]=[cx+(r-12)*Math.cos(a0+th*Math.PI), cy+(r-12)*Math.sin(a0+th*Math.PI)], [tx1,ty1]=[cx+(r+8)*Math.cos(a0+th*Math.PI), cy+(r+8)*Math.sin(a0+th*Math.PI)];
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(label)}">
+    <path d="${arc(0,1)}" stroke="var(--line-hi)" stroke-width="10" fill="none"/>
+    ${frac>0?`<path d="${arc(0,Math.max(frac,.001))}" stroke="${color}" stroke-width="10" fill="none" style="filter:drop-shadow(0 0 6px ${color})"/>`:""}
+    <line x1="${tx0.toFixed(1)}" y1="${ty0.toFixed(1)}" x2="${tx1.toFixed(1)}" y2="${ty1.toFixed(1)}" stroke="var(--fg)" stroke-width="2"/>
+    <text x="${cx}" y="${cy-12}" text-anchor="middle" fill="var(--fg)" font-family="JetBrains Mono, monospace" font-size="24" font-weight="700">${esc(label)}</text>
+    <text x="${cx}" y="${cy+6}" text-anchor="middle" fill="var(--dim)" font-family="JetBrains Mono, monospace" font-size="10">min ${threshold}</text>
+  </svg>`;
+}
+
+function niceStep(span){ const raw=span/6, p=10**Math.floor(Math.log10(raw)), n=raw/p; return (n<1.5?1:n<3?2:n<7?5:10)*p; }
+
+function drawChart(plan, bars, orbCalc){
+  const box=$("chart");
+  if(!plan){ box.innerHTML=`<div class="note" style="padding:16px">Load an ANALYST plan to draw levels.</div>`; return; }
+  const W=720,H=300,L=12,R=96,T=14,B=26, pw=W-L-R, ph=H-T-B;
+  const lv=[];
+  if(isNum(plan.orb_high)) lv.push(plan.orb_high); if(isNum(plan.orb_low)) lv.push(plan.orb_low);
+  if(plan.direction!=="flat"){ for(const v of [plan.entry,plan.stop,...(plan.targets||[])]) if(isNum(v)) lv.push(v); }
+  let ys=[...lv]; if(bars) for(const b of bars){ys.push(b.h,b.l);}
+  if(!ys.length){ box.innerHTML=`<div class="note" style="padding:16px">No numeric levels in this plan.</div>`; return; }
+  let lo=Math.min(...ys), hi=Math.max(...ys); const pad=Math.max((hi-lo)*.08, .5); lo-=pad; hi+=pad;
+  const y=v=>T+(hi-v)/(hi-lo)*ph;
+  let g="";
+  const st=niceStep(hi-lo);
+  for(let v=Math.ceil(lo/st)*st; v<=hi; v+=st){ g+=`<line x1="${L}" x2="${L+pw}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}" stroke="var(--line)" stroke-width="1"/><text x="${L+4}" y="${(y(v)-3).toFixed(1)}" fill="var(--faint)" font-size="9" font-family="JetBrains Mono, monospace">${v.toFixed(st<1?1:0)}</text>`; }
+  // ORB band
+  let ox0=L, ox1=L+pw, cw=0;
+  if(bars){ cw=pw/bars.length;
+    if(orbCalc){ const idx=bars.map((b,i)=>b.t&&b.t.getTime()>=orbCalc.start&&b.t.getTime()<orbCalc.end?i:-1).filter(i=>i>=0); if(idx.length){ox0=L+idx[0]*cw; ox1=L+(idx[idx.length-1]+1)*cw;} }
+  }
+  if(isNum(plan.orb_high)&&isNum(plan.orb_low)){
+    g+=`<rect x="${ox0.toFixed(1)}" y="${y(plan.orb_high).toFixed(1)}" width="${(ox1-ox0).toFixed(1)}" height="${(y(plan.orb_low)-y(plan.orb_high)).toFixed(1)}" fill="var(--cyan-dim)" stroke="var(--cyan)" stroke-dasharray="3 3"/>`;
+    g+=`<text x="${(ox0+4).toFixed(1)}" y="${(y(plan.orb_high)-4).toFixed(1)}" fill="var(--cyan)" font-size="9" font-family="Chakra Petch, sans-serif" letter-spacing="1.5">ORB ${esc(plan.session||"")}</text>`;
+  }
+  if(bars){
+    bars.forEach((b,i)=>{ const x=L+i*cw+cw/2, o=b.o??b.l, c=b.c??b.h, up=c>=o, col=up?"var(--good)":"var(--bad)";
+      g+=`<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${y(b.h).toFixed(1)}" y2="${y(b.l).toFixed(1)}" stroke="${col}" stroke-width="1"/>`;
+      const top=y(Math.max(o,c)), hgt=Math.max(1,Math.abs(y(o)-y(c)));
+      g+=`<rect x="${(x-cw*.32).toFixed(1)}" y="${top.toFixed(1)}" width="${(cw*.64).toFixed(1)}" height="${hgt.toFixed(1)}" fill="${col}" fill-opacity="${up?.55:.8}"/>`;
+    });
+    const first=bars[0].t, last=bars[bars.length-1].t;
+    if(first&&last){ const fmt=d=>d.toISOString().slice(11,16);
+      g+=`<text x="${L}" y="${H-8}" fill="var(--faint)" font-size="9" font-family="JetBrains Mono, monospace">${fmt(first)} UTC</text><text x="${L+pw}" y="${H-8}" text-anchor="end" fill="var(--faint)" font-size="9" font-family="JetBrains Mono, monospace">${fmt(last)} UTC · ${bars.length} bars · ${first.toISOString().slice(0,10)}</text>`; }
+  } else {
+    g+=`<text x="${L+pw/2}" y="${H-8}" text-anchor="middle" fill="var(--faint)" font-size="10" font-family="JetBrains Mono, monospace">No candles loaded · levels only</text>`;
+  }
+  // level lines
+  const lines=[];
+  if(plan.direction!=="flat"){
+    if(isNum(plan.stop)) lines.push(["STOP",plan.stop,"var(--bad)"]);
+    if(isNum(plan.entry)) lines.push(["ENTRY",plan.entry,"var(--gold)"]);
+    (plan.targets||[]).forEach((t,i)=>isNum(t)&&lines.push([`T${i+1}`,t,"var(--good)"]));
+  }
+  // de-collide labels
+  const placed=lines.map(([n,v,c])=>({n,v,c,ly:y(v)})).sort((a,b)=>a.ly-b.ly);
+  for(let i=1;i<placed.length;i++) if(placed[i].ly-placed[i-1].ly<13) placed[i].ly=placed[i-1].ly+13;
+  if(plan.direction!=="flat" && isNum(plan.entry)&&isNum(plan.stop)&&plan.targets&&isNum(plan.targets[0])){
+    g+=`<rect x="${L+pw-46}" y="${Math.min(y(plan.entry),y(plan.targets[0])).toFixed(1)}" width="10" height="${Math.abs(y(plan.entry)-y(plan.targets[0])).toFixed(1)}" fill="var(--good)" fill-opacity=".35"/>`;
+    g+=`<rect x="${L+pw-46}" y="${Math.min(y(plan.entry),y(plan.stop)).toFixed(1)}" width="10" height="${Math.abs(y(plan.entry)-y(plan.stop)).toFixed(1)}" fill="var(--bad)" fill-opacity=".45"/>`;
+  }
+  for(const p of placed){
+    g+=`<line x1="${L}" x2="${L+pw}" y1="${y(p.v).toFixed(1)}" y2="${y(p.v).toFixed(1)}" stroke="${p.c}" stroke-width="1.4" ${p.n==="ENTRY"?"":'stroke-dasharray="6 4"'}/>`;
+    g+=`<rect x="${L+pw+2}" y="${(p.ly-7).toFixed(1)}" width="${R-4}" height="14" fill="var(--bg)" stroke="${p.c}"/>`;
+    g+=`<text x="${L+pw+6}" y="${(p.ly+3.5).toFixed(1)}" fill="${p.c}" font-size="10" font-family="JetBrains Mono, monospace" font-weight="700">${p.n} ${f2(p.v)}</text>`;
+  }
+  box.innerHTML=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Plan levels over candles">${g}</svg>`;
+}
+
+function render(){
+  const cfg=S.cfg, plan=S.plan, now=new Date();
+  let bars=null, candleErr="";
+  if(S.candles){ try{bars=normalizeCandles(S.candles);}catch(e){candleErr=e.message;} }
+  const src=$("src");
+  src.className="src "+(S.sample?"sample":"user"); src.textContent=S.sample?"Sample data · synthetic":"Your data";
+  $("footSrc").textContent="Source: "+(S.label||"nothing loaded yet");
+
+  // gate
+  const d = plan ? evaluate(plan, S.candles, S.pnl, cfg, now, S.news) : null;
+  const v=$("verdict");
+  if(!d){ v.className="verdict v-WAIT"; v.textContent="NO PLAN"; $("verdictWhy").textContent="Load an ANALYST plan JSON to run the gate."; }
+  else {
+    v.className="verdict v-"+d.verdict; v.textContent=d.verdict.replace("_"," ");
+    $("verdictWhy").textContent = d.verdict==="APPROVE" ? `All ${d.checks.length} checks pass. Still needs your approval.`
+      : d.verdict==="NO_TRADE" ? "ANALYST says flat. Stand aside." : `${d.reasons.length} check${d.reasons.length>1?"s":""} failed: ${d.reasons.map(r=>r.split(":")[0]).join(", ")}`;
+  }
+  chip($("riskChip"), d?d.verdict.replace("_"," "):"waiting", !d?"c-dim":d.verdict==="APPROVE"?"c-good":d.verdict==="REJECT"?"c-bad":"c-warn");
+  $("checks").innerHTML = d ? d.checks.map(c=>`<li class="${c.ok?"":"fail"}"><span class="${c.ok?"ok":"no"}">${c.ok?"✓":"✕"}</span><span class="name">${esc(c.check)}</span><span class="det">${esc(c.detail)}</span></li>`).join("")
+    : `<li><span class="no">·</span><span class="name">no plan</span><span class="det">Nothing to check yet.</span></li>`;
+  if(plan && !S.candles) $("checks").insertAdjacentHTML("beforeend", `<li class="fail"><span class="no">!</span><span class="name">candles</span><span class="det">No candles loaded. The gate needs the session candles to verify the ORB and levels.</span></li>`);
+
+  // plan + strip
+  const ok=plan && !validatePlan(plan).length;
+  const dir=plan&&typeof plan.direction==="string"?plan.direction:null;
+  $("pDir").className="dir "+(dir||""); $("pDir").textContent=dir?dir.toUpperCase():"—";
+  $("sDir").innerHTML=dir?`<span class="dir ${dir}" style="font-size:22px">${dir.toUpperCase()}</span>`:"—";
+  $("sSess").textContent=plan?`${plan.session||"?"} ORB · ${plan.symbol||"?"}`:"";
+  chip($("planSess"), plan?`${plan.session||"?"} session`:"no plan", plan?"c-gold":"c-dim");
+  $("pOrb").textContent = plan&&isNum(plan.orb_high)&&isNum(plan.orb_low) ? `ORB ${f2(plan.orb_low)} – ${f2(plan.orb_high)}  ·  width $${(plan.orb_high-plan.orb_low).toFixed(2)}` : "";
+  const ent=plan&&isNum(plan.entry)?plan.entry:null;
+  const setLv=(id,val,ref)=>{ $(id).textContent=isNum(val)?f2(val):"—"; $(id+"D").textContent=isNum(val)&&isNum(ref)&&val!==ref?`${val-ref>0?"+":""}${(val-ref).toFixed(2)}`:" "; };
+  setLv("lvEntry", plan?.entry, null); setLv("lvStop", plan?.stop, ent);
+  setLv("lvT1", plan?.targets?.[0], ent); setLv("lvT2", plan?.targets?.[1], ent);
+  if(isNum(ent)&&isNum(plan.stop)) $("lvEntryD").textContent=`risk $${Math.abs(ent-plan.stop).toFixed(2)}/oz`;
+  $("pInv").textContent=plan?.invalidation||"—"; $("pWhy").textContent=plan?.reasoning||"—";
+  $("pKeys").innerHTML=(plan?.key_levels||[]).map(k=>`<span class="tag">${esc(k)}</span>`).join("")||`<span class="note">none</span>`;
+  const orbCalc = bars&&plan ? computeOrb(bars, plan.session, cfg) : null;
+  drawChart(plan, bars, orbCalc);
+
+  const rr=d?.computed_rr ?? (plan&&isNum(plan.reward_risk)?plan.reward_risk:null);
+  $("sRR").textContent=isNum(rr)?rr.toFixed(2)+"R":"—";
+  $("sRRn").textContent=plan?`reported ${isNum(plan.reward_risk)?plan.reward_risk:"?"} · min ${cfg.min_rr}`:"";
+  $("sRR").style.color=isNum(rr)?(rr>=cfg.min_rr?"var(--good)":"var(--bad)"):"";
+  const conf=plan&&isNum(plan.confidence)?plan.confidence:null;
+  $("sConf").textContent=isNum(conf)?Math.round(conf*100)+"%":"—"; $("sConfn").textContent=`min ${Math.round(cfg.min_confidence*100)}%`;
+  $("sConf").style.color=isNum(conf)?(conf>=cfg.min_confidence?"var(--good)":"var(--bad)"):"";
+  $("gConf").innerHTML=gauge(conf??0,1,cfg.min_confidence, isNum(conf)&&conf>=cfg.min_confidence?"var(--good)":"var(--bad)", isNum(conf)?Math.round(conf*100)+"%":"—");
+  $("gRR").innerHTML=gauge(rr??0,Math.max(4,(rr||0)+.5),cfg.min_rr, isNum(rr)&&rr>=cfg.min_rr?"var(--good)":"var(--bad)", isNum(rr)?rr.toFixed(2):"—");
+
+  // confluence
+  const vpMap={strong:"c-good",moderate:"c-gold",weak:"c-warn",not_available:"c-na"};
+  const whMap={supportive:"c-good",opposing:"c-bad",neutral:"c-dim",not_available:"c-na"};
+  const vp=plan?.volume_profile_confluence, wh=plan?.whale_or_gamex_confluence;
+  chip($("cVP"), vp?String(vp).replace("_"," "):"no plan", vpMap[vp]||"c-dim");
+  chip($("cWh"), wh?String(wh).replace("_"," "):"no plan", whMap[wh]||"c-dim");
+  $("noConfBanner").hidden=!(vp==="not_available"&&wh==="not_available");
+  const mb=S.macro.bias;
+  chip($("cMacro"), mb.replace("_"," "), {bullish:"c-good",bearish:"c-bad",neutral:"c-dim",not_available:"c-na"}[mb]||"c-dim");
+  $("cMacroNote").textContent=S.macro.note||(mb==="not_available"?"Not supplied by MACRO":"No note");
+  let al="—",alc="c-dim",aln="";
+  if(dir&&dir!=="flat"&&mb!=="not_available"){
+    if(mb==="neutral"){al="neutral";aln="No macro tilt either way.";}
+    else if((dir==="long")===(mb==="bullish")){al="aligned";alc="c-good";aln=`${dir} with ${mb} bias.`;}
+    else {al="conflict";alc="c-bad";aln=`${dir} against ${mb} bias. ANALYST rules say lower confidence or go flat.`;}
+  } else if(mb==="not_available"){al="unknown";alc="c-na";aln="No MACRO bias loaded.";}
+  else if(dir==="flat"){al="flat";aln="Plan is flat.";}
+  chip($("cAlign"),al,alc); $("cAlignNote").textContent=aln;
+
+  // daily loss
+  const lim=Math.abs(cfg.daily_loss_limit), used=Math.max(0,-S.pnl), frac=Math.min(1,used/lim), left=Math.max(0,lim-used);
+  $("lossUsed").textContent=money(used); $("lossLimit").textContent=money(lim); $("lossScaleMax").textContent=money(lim);
+  const col=frac>=1?"var(--bad)":frac>=.7?"var(--warn)":"var(--good)";
+  $("lossFill").style.width=(frac*100).toFixed(1)+"%"; $("lossFill").style.background=`linear-gradient(90deg, ${col}, ${col})`; $("lossFill").style.boxShadow=`0 0 12px ${col}`;
+  chip($("lossChip"), frac>=1?"limit hit":frac>=.7?"near limit":"ok", frac>=1?"c-bad":frac>=.7?"c-warn":"c-good");
+  $("sLoss").textContent=money(left); $("sLoss").style.color=col; $("sLossn").textContent=`${Math.round(frac*100)}% of ${money(lim)} used`;
+  $("lossNote").textContent = S.pnl>0 ? `Up ${money(S.pnl)} today. Nothing used against the limit.` : frac>=1 ? "Daily loss limit reached. RISK rejects every plan, flat included, until tomorrow." : `${money(left)} left before RISK blocks every plan for the day.`;
+  $("tradeRisk").textContent = ok&&dir!=="flat"&&isNum(ent)&&isNum(plan.stop) ? `Stop distance $${Math.abs(ent-plan.stop).toFixed(2)}/oz, which is $${(Math.abs(ent-plan.stop)*100).toFixed(0)} per 1.00 lot (100 oz). Sizing stays with you.` : "";
+
+  if(candleErr) $("loadErr").textContent="Candles: "+candleErr;
+  tick();
+}
+
+/* ---------- clocks (every second) ---------- */
+function hm(ms){ const s=Math.max(0,Math.floor(ms/1000)), h=Math.floor(s/3600), m=Math.floor(s%3600/60), x=s%60; return (h?String(h).padStart(2,"0")+":":"")+String(m).padStart(2,"0")+":"+String(x).padStart(2,"0"); }
+const fmtTZ=(d,tz,opt={hour:"2-digit",minute:"2-digit",second:"2-digit"})=>new Intl.DateTimeFormat("en-GB",{timeZone:tz,hour12:false,...opt}).format(d);
+let bars_cache=null;
+function marketOpen(now){ const d=now.getUTCDay(), h=now.getUTCHours(); return !(d===6 || (d===5&&h>=21) || (d===0&&h<22)); }
+function tick(){
+  const now=new Date(), cfg=S.cfg;
+  $("utcNow").textContent=now.toISOString().slice(11,19);
+  const open=marketOpen(now);
+  chip($("mkt"), open?"market open":"market closed", open?"c-good live":"c-dim");
+  let bars=null; try{ bars=S.candles?normalizeCandles(S.candles):null; }catch(e){}
+  const y=now.getUTCFullYear(), m=now.getUTCMonth(), dd=now.getUTCDate();
+  const dst=[];
+  for(const s of SESSIONS){
+    const el=$("ck-"+s), [hh,mm]=cfg.orb_start[s].split(":").map(Number);
+    let start=Date.UTC(y,m,dd,hh,mm), end=start+cfg.orb_minutes*60000;
+    el.querySelector("[data-time]").textContent=fmtTZ(now,TZ[s]);
+    const sd=new Date(start), ed=new Date(end);
+    el.querySelector("[data-win]").textContent=`${cfg.orb_start[s]}–${ed.toISOString().slice(11,16)} UTC`;
+    const loc=fmtTZ(sd,TZ[s],{hour:"2-digit",minute:"2-digit"});
+    const expected={London:"08:00",NewYork:"08:30"}[s];
+    if(loc!==expected) dst.push(`${s==="NewYork"?"New York":"London"} window starts ${loc} local today (desk assumes ${expected})`);
+    const st=el.querySelector("[data-st]"), cdl=el.querySelector("[data-cdl]"), cd=el.querySelector("[data-cd]");
+    const t=now.getTime();
+    if(!open){ chip(st,"closed","c-dim"); cdl.textContent="Session"; cd.textContent="market closed"; }
+    else if(t<start){ chip(st,"pre-open","c-cyan"); cdl.textContent="ORB opens in"; cd.textContent=hm(start-t); }
+    else if(t<end){ chip(st,"ORB forming","c-gold live"); cdl.textContent="Range locks in"; cd.textContent=hm(end-t); }
+    else { chip(st,"range set","c-good"); cdl.textContent="Range set"; cd.textContent=hm(t-end)+" ago"; }
+    // ORB values: from candles first, else from plan when it's for this session
+    const oc=bars?computeOrb(bars,s,cfg):null, pl=S.plan&&S.plan.session===s?S.plan:null;
+    const orbEl=el.querySelector("[data-orb]");
+    if(oc) orbEl.innerHTML=`<span class="hi">H ${f2(oc.high)}</span><span class="lo">L ${f2(oc.low)}</span><span class="note">${oc.date} · candles</span>`;
+    else if(pl&&isNum(pl.orb_high)) orbEl.innerHTML=`<span class="hi">H ${f2(pl.orb_high)}</span><span class="lo">L ${f2(pl.orb_low)}</span><span class="note">from plan</span>`;
+    else orbEl.innerHTML=`<span class="note">No range loaded</span>`;
+  }
+  $("dstNote").textContent=dst.length?"Clock check: "+dst.join("; ")+". Adjust orb_start in config if your broker follows local time.":"";
+  // timeline
+  const pct=ms=>((ms%86400000)/86400000*100);
+  const bands=[["Asia",0,7*60,"rgba(125,142,166,.18)"],["London",7*60,16*60,"rgba(92,210,230,.16)"],["New York",cfg.orb_start.NewYork.split(":").reduce((a,b,i)=>a+(i?+b:+b*60),0),21*60,"rgba(233,185,73,.14)"]];
+  let h="";
+  for(const [n,a,b,c] of bands) h+=`<div class="band" style="left:${a/14.4}%;width:${(b-a)/14.4}%;background:${c}"><span>${n}</span></div>`;
+  for(const s of SESSIONS){ const [hh,mm]=cfg.orb_start[s].split(":").map(Number); const a=hh*60+mm; h+=`<div class="orbw" title="${s} ORB" style="left:${a/14.4}%;width:${cfg.orb_minutes/14.4}%"></div>`; }
+  h+=`<div class="now" style="left:${pct(now.getTime()).toFixed(2)}%"></div><div class="ticks">`;
+  for(let i=0;i<=24;i+=3) h+=`<i style="left:${Math.min(98,Math.max(2,i/24*100))}%">${String(i).padStart(2,"0")}</i>`;
+  h+="</div>";
+  $("timeline").innerHTML=h;
+}
+
+/* ---------- inputs ---------- */
+function syncInputs(){
+  $("inPnl").value=S.pnl; $("inMacro").value=S.macro.bias; $("inMacroNote").value=S.macro.note; $("inNews").value=(S.news||[]).join(", ");
+}
+$("inPnl").addEventListener("input",e=>{ const v=parseFloat(e.target.value); S.pnl=isNum(v)?v:0; render(); });
+$("inMacro").addEventListener("change",e=>{ S.macro.bias=e.target.value; render(); });
+$("inMacroNote").addEventListener("input",e=>{ S.macro.note=e.target.value; render(); });
+$("inNews").addEventListener("change",e=>{ S.news=e.target.value.split(",").map(x=>x.trim()).filter(Boolean); render(); });
+$("fileIn").addEventListener("change",e=>{ loadFiles([...e.target.files]); e.target.value=""; });
+$("pasteBtn").addEventListener("click",()=>{ $("pastePanel").hidden=false; $("pasteTxt").focus(); });
+$("pasteClose").addEventListener("click",()=>{ $("pastePanel").hidden=true; });
+$("pasteApply").addEventListener("click",()=>{ const err=loadTexts([{name:"pasted",text:$("pasteTxt").value}]); $("pasteErr").textContent=err; if(!err) $("pastePanel").hidden=true; });
+$("resetBtn").addEventListener("click",()=>{ S=sampleState(); $("loadErr").textContent=""; syncInputs(); render(); });
+let dragDepth=0;
+addEventListener("dragenter",e=>{ if([...(e.dataTransfer?.types||[])].includes("Files")){ dragDepth++; $("drop").hidden=false; e.preventDefault(); }});
+addEventListener("dragover",e=>e.preventDefault());
+addEventListener("dragleave",()=>{ if(--dragDepth<=0){dragDepth=0; $("drop").hidden=true;} });
+addEventListener("drop",e=>{ e.preventDefault(); dragDepth=0; $("drop").hidden=true; if(e.dataTransfer?.files?.length) loadFiles([...e.dataTransfer.files]); });
+
+syncInputs(); render();
+setInterval(tick,1000);
+setInterval(render,30000); // re-run time-dependent gate checks (news blackout)
+})();
+</script>
+</body>
+</html>
