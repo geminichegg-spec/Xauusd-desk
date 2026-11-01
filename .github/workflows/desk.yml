@@ -30,13 +30,16 @@ jobs:
     env:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       XAI_API_KEY: ${{ secrets.XAI_API_KEY }}
+      TYPESAFE_API_KEY: ${{ secrets.TYPESAFE_API_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - run: python keys.py
-      - run: python analyst.py examples/candles_london.json --session "$SESSION" --provider "$PROVIDER"
+      - run: |
+          JEV_FLAG=""; [ -n "$TYPESAFE_API_KEY" ] && JEV_FLAG="--jev"
+          python analyst.py examples/candles_london.json --session "$SESSION" --provider "$PROVIDER" $JEV_FLAG
         env:
           SESSION: ${{ inputs.session }}
           PROVIDER: ${{ inputs.provider }}

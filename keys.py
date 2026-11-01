@@ -13,6 +13,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 PROVIDERS = {
     "gemini": {"key": "GEMINI_API_KEY", "model": "GEMINI_MODEL", "default_model": "gemini-3.8-flash"},
     "grok": {"key": "XAI_API_KEY", "model": "GROK_MODEL", "default_model": "grok-4"},
+    # TypeSafe AI (Jev): typed second opinion on a plan, not a plan writer. See jev.py.
+    "typesafe": {"key": "TYPESAFE_API_KEY", "model": "JEV_MODEL", "default_model": "jev-latest"},
 }
 
 
@@ -56,4 +58,4 @@ def status() -> dict:
 if __name__ == "__main__":
     load_dotenv()
     for name, ok in status().items():
-        print(f"{name:7} {'key found' if ok else 'missing'}  model={get_model(name)}")
+        print(f"{name:9} {'key found' if ok else 'missing'}  model={get_model(name)}")

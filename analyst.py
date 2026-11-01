@@ -1,7 +1,7 @@
 """Ask Gemini or Grok (as ANALYST) for an ORB plan, then run it through the RISK gate.
 
     python3 analyst.py examples/candles_london.json --session London [--provider grok]
-        [--context "VP: VAH 2662, POC 2655"] [--pnl -120] [--config config.json]
+        [--context "VP: VAH 2662, POC 2655"] [--pnl -120] [--config config.json] [--jev]
 
 Standard library only. The model never places orders; RISK has the final word.
 Exit code 0 = APPROVE or NO_TRADE, 1 = REJECT, 2 = bad input or API error.
@@ -16,6 +16,7 @@ import sys
 import urllib.error
 import urllib.request
 
+import jev
 import keys
 from risk_gate import RiskConfig, evaluate
 
@@ -80,6 +81,7 @@ def main(argv=None) -> int:
     ap.add_argument("--context", default="", help="Volume Profile / whale / macro notes you have")
     ap.add_argument("--pnl", type=float, default=0.0, help="realized P&L today")
     ap.add_argument("--config", help="RiskConfig JSON file")
+    ap.add_argument("--jev", action="store_true", help="add a TypeSafe AI (Jev) second opinion (advisory)")
     ap.add_argument("--now", help="current time, ISO 8601")
     ap.add_argument("--news", nargs="*", default=[], help="high-impact USD release times")
     a = ap.parse_args(argv)
@@ -97,7 +99,13 @@ def main(argv=None) -> int:
         print(json.dumps({"verdict": "ERROR", "reasons": [str(e)]}))
         return 2
     d = evaluate(plan, candles, a.pnl, cfg, a.now, a.news)
-    print(json.dumps({"provider": a.provider, "plan": plan, "risk": d.to_dict()}, indent=2, default=str))
+    result = {"provider": a.provider, "plan": plan, "risk": d.to_dict()}
+    if a.jev:
+        try:
+            result["jev_review"] = jev.review(plan, candles, a.context)
+        except (RuntimeError, urllib.error.URLError) as e:
+            result["jev_review"] = {"error": str(e)}
+    print(json.dumps(result, indent=2, default=str))
     return 1 if d.verdict == "REJECT" else 0
 
 
